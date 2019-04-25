@@ -2,6 +2,10 @@
 //
 // Copyright (c) 2019  Douglas Lau
 //
+//! # GIF*t*
+//!
+//! A decoder and encoder for GIF images.
+//!
 #[macro_use]
 extern crate log;
 

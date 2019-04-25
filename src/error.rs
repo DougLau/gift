@@ -6,17 +6,30 @@
 use std::fmt;
 use std::io;
 
+/// Errors encountered while decoding a GIF file.
 #[derive(Debug)]
 pub enum DecodeError {
+    /// A wrapped I/O error.
     Io(io::Error),
+    /// [Header](block/struct.Header.html) block malformed or missing.
     MalformedHeader,
+    /// GIF version not supported (87a or 89a only).
     UnsupportedVersion([u8; 3]),
+    /// Invalid [Block](block/enum.Block.html) code (signature).
     InvalidBlockCode,
+    /// [Block](block/enum.Block.html)s arranged in invalid sequence.
     InvalidBlockSequence,
+    /// [GraphicControl](block/struct.GraphicControl.html) block has invalid
+    /// length.
     MalformedGraphicControlExtension,
+    /// File ends with incomplete block.
     UnexpectedEndOfFile,
+    /// LZW code size must be less than or equal to 12.
     InvalidCodeSize,
+    /// Image larger than specified by
+    /// [max_image_sz](struct.Decoder.html#method.max_image_sz).
     TooLargeImage,
+    /// [ImageData](block/struct.ImageData.html) block is incomplete.
     IncompleteImageData,
 }
 
