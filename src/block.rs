@@ -639,6 +639,15 @@ impl ImageDesc {
     pub fn flags(&self) -> u8 {
         self.flags
     }
+    /// Set the interlaced flag
+    pub fn with_interlaced(mut self, interlaced: bool) -> Self {
+        self.flags = if interlaced {
+            self.flags | Self::INTERLACED
+        } else {
+            self.flags & !Self::INTERLACED
+        };
+        self
+    }
     /// Get the interlaced flag
     pub fn interlaced(&self) -> bool {
         (self.flags & Self::INTERLACED) != 0
