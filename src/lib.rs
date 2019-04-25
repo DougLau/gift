@@ -6,3 +6,5 @@
 extern crate log;
 
 pub mod block;
+mod decode;
+mod error;
