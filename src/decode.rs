@@ -8,24 +8,51 @@ use lzw;
 use crate::error::DecodeError;
 use crate::block::*;
 
+/// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
 
+/// A builder which can be turned into either a
+/// [BlockDecoder](struct.BlockDecoder.html) or a
+/// [FrameDecoder](struct.FrameDecoder.html).
+///
+/// ## Example
+/// ```
+/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # let gif = &[
+/// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
+/// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
+/// #   0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
+/// #   0x02, 0x00, 0x02, 0x00, 0x00, 0x02, 0x03, 0x0c,
+/// #   0x10, 0x05, 0x00, 0x3b,
+/// # ][..];
+/// let mut frame_dec = gift::Decoder::new(gif).into_frame_decoder();
+/// let preamble = frame_dec.preamble()?;
+/// println!("preamble: {:?}", preamble);
+/// for frame in frame_dec {
+///     println!("frame: {:?}", frame?);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct Decoder<R: Read> {
     reader: BufReader<R>,
     max_image_sz: Option<usize>,
 }
 
 impl<R: Read> Decoder<R> {
+    /// Create a new Decoder
     pub fn new(r: R) -> Self {
         Decoder {
             reader: BufReader::new(r),
             max_image_sz: None,
         }
     }
+    /// Set the maximum image size (in bytes) to allow for decoding.
     pub fn max_image_sz(mut self, max_image_sz: Option<usize>) -> Self {
         self.max_image_sz = max_image_sz;
         self
     }
+    /// Convert the decoder into a frame decoder.
     pub fn into_frame_decoder(self) -> FrameDecoder<R> {
         FrameDecoder::new(self.into_iter())
     }
@@ -35,11 +62,17 @@ impl<R: Read> IntoIterator for Decoder<R> {
     type Item = Result<Block, DecodeError>;
     type IntoIter = BlockDecoder<R>;
 
+    /// Convert the decoder into a block decoder
     fn into_iter(self) -> Self::IntoIter {
         BlockDecoder::new(self.reader, self.max_image_sz)
     }
 }
 
+/// A frame decoder is an iterator for [Frame](block/struct.Frame.html)s within
+/// a GIF file.
+///
+/// It can only be created with
+/// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
 pub struct FrameDecoder<R: Read> {
     block_iter: BlockDecoder<R>,
     preamble: Option<Preamble>,
@@ -69,6 +102,7 @@ impl<R: Read> Iterator for FrameDecoder<R> {
 }
 
 impl<R: Read> FrameDecoder<R> {
+    /// Create a new frame decoder
     fn new(block_iter: BlockDecoder<R>) -> Self {
         FrameDecoder {
             block_iter,
@@ -78,6 +112,8 @@ impl<R: Read> FrameDecoder<R> {
             local_color_table: None,
         }
     }
+    /// Read preamble blocks.  These are the blocks at the beginning of the
+    /// file, before any frame blocks.
     pub fn preamble(&mut self) -> Result<Option<Preamble>, DecodeError> {
         if self.has_frame() {
             return Ok(None);
@@ -91,11 +127,13 @@ impl<R: Read> FrameDecoder<R> {
         }
         Ok(self.preamble.take())
     }
+    /// Check if any frame blocks exist
     fn has_frame(&self) -> bool {
         self.graphic_control_ext.is_some() ||
         self.image_desc.is_some() ||
         self.local_color_table.is_some()
     }
+    /// Handle one block
     fn handle_block(&mut self, block: Block)
         -> Result<Option<Frame>, DecodeError>
     {
@@ -155,6 +193,11 @@ impl<R: Read> FrameDecoder<R> {
     }
 }
 
+/// A block decoder can iterate over every [Block](block/enum.Block.html) in a
+/// GIF file.
+///
+/// It can only be created with
+/// Decoder.[into_iter](struct.Decoder.html#method.into_iter).
 pub struct BlockDecoder<R: Read> {
     reader: BufReader<R>,
     max_image_sz: Option<usize>,
@@ -183,6 +226,7 @@ impl<R: Read> Iterator for BlockDecoder<R> {
 }
 
 impl<R: Read> BlockDecoder<R> {
+    /// Create a new block decoder
     fn new(reader: BufReader<R>, max_image_sz: Option<usize>) -> Self {
         use self::BlockCode::Header_;
         BlockDecoder {
@@ -195,6 +239,7 @@ impl<R: Read> BlockDecoder<R> {
             decoder: None,
         }
     }
+    /// Examine buffer for block code and size.
     fn examine_buffer(&mut self) -> Result<(BlockCode, usize), DecodeError> {
         let buf = &self.buffer[..];
         let t = if buf.len() > 0 { buf[0] } else { 0 };
@@ -212,6 +257,7 @@ impl<R: Read> BlockDecoder<R> {
             None => Err(DecodeError::InvalidBlockCode),
         }
     }
+    /// Get next expected block code and size
     fn expected(&self, bc: BlockCode) -> Option<(BlockCode, usize)> {
         use crate::block::BlockCode::*;
         let buf = &self.buffer[..];
@@ -253,6 +299,7 @@ impl<R: Read> BlockDecoder<R> {
             _ => None,
         }
     }
+    /// Decode the next block (including all sub-blocks).
     fn next_block(&mut self) -> Result<Block, DecodeError> {
         self.fill_buffer()?;
         let (bc, sz) = self.examine_buffer()?;
@@ -263,6 +310,7 @@ impl<R: Read> BlockDecoder<R> {
         self.check_block_end(&block)?;
         Ok(block)
     }
+    /// Check end of block (after sub-blocks)
     fn check_block_end(&mut self, block: &Block) -> Result<(), DecodeError> {
         if let Block::ImageData(b) = block {
             self.decoder = None;
@@ -272,6 +320,7 @@ impl<R: Read> BlockDecoder<R> {
         }
         Ok(())
     }
+    /// Fill the buffer from reader
     fn fill_buffer(&mut self) -> Result<(), DecodeError> {
         let mut len = self.buffer.len();
         self.buffer.resize(BUF_SZ, 0);
@@ -286,6 +335,7 @@ impl<R: Read> BlockDecoder<R> {
         self.buffer.resize(len, 0);
         return Ok(());
     }
+    /// Decode one block
     fn decode_block(&mut self, bc: BlockCode, sz: usize)
         -> Result<Block, DecodeError>
     {
@@ -300,6 +350,7 @@ impl<R: Read> BlockDecoder<R> {
             Err(DecodeError::UnexpectedEndOfFile)
         }
     }
+    /// Parse a block in the buffer
     fn parse_block(&self, bc: BlockCode, sz: usize)
         -> Result<Block, DecodeError>
     {
@@ -316,6 +367,7 @@ impl<R: Read> BlockDecoder<R> {
             Trailer_ => Trailer::default().into(),
         })
     }
+    /// Check start of block (before sub-blocks)
     fn check_block_start(&mut self, block: &Block) -> Result<(), DecodeError> {
         match block {
             Block::ImageDesc(b) => {
@@ -334,6 +386,7 @@ impl<R: Read> BlockDecoder<R> {
         }
         Ok(())
     }
+    /// Decode one sub-block
     fn decode_sub_block(&mut self, block: &mut Block)
         -> Result<bool, DecodeError>
     {
@@ -353,6 +406,7 @@ impl<R: Read> BlockDecoder<R> {
         }
         Err(DecodeError::UnexpectedEndOfFile)
     }
+    /// Parse a sub-block in the buffer
     fn parse_sub_block(&mut self, block: &mut Block, sz: usize)
         -> Result<(), DecodeError>
     {
@@ -369,6 +423,7 @@ impl<R: Read> BlockDecoder<R> {
         }
         Ok(())
     }
+    /// Decode image data
     fn decode_image_data(&mut self, b: &mut ImageData, sz: usize)
         -> Result<(), DecodeError>
     {
@@ -387,6 +442,7 @@ impl<R: Read> BlockDecoder<R> {
 }
 
 impl Header {
+    /// Decode a Header block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::Header_.size());
         if &buf[..3] == b"GIF" {
@@ -404,6 +460,7 @@ impl Header {
 }
 
 impl LogicalScreenDesc {
+    /// Decode a Logical Screen Descriptor block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::LogicalScreenDesc_.size());
         let width = (buf[1] as u16) << 8 | buf[0] as u16;
@@ -421,12 +478,14 @@ impl LogicalScreenDesc {
 }
 
 impl GlobalColorTable {
+    /// Decode a Global Color Table block from a buffer
     fn from_buf(buf: &[u8]) -> Self {
         Self::with_colors(buf)
     }
 }
 
 impl ImageDesc {
+    /// Decode an Image Descriptor block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::ImageDesc_.size());
         let left = (buf[2] as u16) << 8 | buf[1] as u16;
@@ -444,12 +503,14 @@ impl ImageDesc {
 }
 
 impl LocalColorTable {
+    /// Decode a Local Color Table block from a buffer
     fn from_buf(buf: &[u8]) -> Self {
         Self::with_colors(buf)
     }
 }
 
 impl ImageData {
+    /// Decode an Image Data block from a buffer
     fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
         let min_code_size = buf[0];
@@ -462,6 +523,7 @@ impl ImageData {
 }
 
 impl Block {
+    /// Parse an extension block
     fn parse_extension(buf: &[u8]) -> Self {
         use crate::block::ExtensionCode::*;
         assert_eq!(buf.len(), BlockCode::Extension_.size());
@@ -477,12 +539,14 @@ impl Block {
 }
 
 impl PlainText {
+    /// Parse a Plain Text extension block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_sub_block(buf);
     }
 }
 
 impl GraphicControl {
+    /// Parse a Graphic Control extension block
     fn parse_buf(&mut self, buf: &[u8]) -> Result<(), DecodeError> {
         if buf.len() == 4 {
             self.set_flags(buf[0]);
@@ -497,29 +561,34 @@ impl GraphicControl {
 }
 
 impl Comment {
+    /// Parse a Comment extension block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_comment(buf);
     }
 }
 
 impl Application {
+    /// Parse an Application extension block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_app_data(buf);
     }
 }
 
 impl Unknown {
+    /// Create a new Unknown extension block
     fn new(ext_id: u8) -> Self {
         let mut b = Unknown::default();
         b.add_sub_block(&[ext_id]);
         b
     }
+    /// Parse an Unknown extension block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_sub_block(buf);
     }
 }
 
 impl ImageData {
+    /// Parse an Image Data block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_data(buf);
     }
