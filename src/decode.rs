@@ -43,7 +43,9 @@ impl<R: Read> IntoIterator for Decoder<R> {
 pub struct FrameDecoder<R: Read> {
     block_iter: BlockDecoder<R>,
     preamble: Option<Preamble>,
-    frame: Option<Frame>,
+    graphic_control_ext: Option<GraphicControl>,
+    image_desc: Option<ImageDesc>,
+    local_color_table: Option<LocalColorTable>,
 }
 
 impl<R: Read> Iterator for FrameDecoder<R> {
@@ -71,21 +73,28 @@ impl<R: Read> FrameDecoder<R> {
         FrameDecoder {
             block_iter,
             preamble: None,
-            frame: None,
+            graphic_control_ext: None,
+            image_desc: None,
+            local_color_table: None,
         }
     }
     pub fn preamble(&mut self) -> Result<Option<Preamble>, DecodeError> {
-        if let Some(_) = self.frame {
+        if self.has_frame() {
             return Ok(None);
         }
         self.preamble = Some(Preamble::default());
         while let Some(block) = self.block_iter.next() {
             self.handle_block(block?)?;
-            if self.frame.is_some() {
+            if self.has_frame() {
                 break;
             }
         }
         Ok(self.preamble.take())
+    }
+    fn has_frame(&self) -> bool {
+        self.graphic_control_ext.is_some() ||
+        self.image_desc.is_some() ||
+        self.local_color_table.is_some()
     }
     fn handle_block(&mut self, block: Block)
         -> Result<Option<Frame>, DecodeError>
@@ -114,30 +123,30 @@ impl<R: Read> FrameDecoder<R> {
                 }
             },
             Block::GraphicControl(b) => {
-                let mut f = Frame::default();
-                f.graphic_control_ext = Some(b);
-                self.frame = Some(f);
+                if self.has_frame() {
+                    return Err(DecodeError::InvalidBlockSequence);
+                }
+                self.graphic_control_ext = Some(b);
             },
             Block::ImageDesc(b) => {
-                let mut f = self.frame.take()
-                    .unwrap_or_else(|| Frame::default());
-                f.image_desc = Some(b);
-                self.frame = Some(f);
+                if self.image_desc.is_some() {
+                    return Err(DecodeError::InvalidBlockSequence);
+                }
+                self.image_desc = Some(b);
             },
             Block::LocalColorTable(b) => {
-                if let Some(mut f) = self.frame.take() {
-                    f.local_color_table = Some(b);
-                    self.frame = Some(f);
-                } else {
-                    return Err(DecodeError::MalformedGif);
-                }
+                self.local_color_table = Some(b);
             },
-            Block::ImageData(b) => {
-                if let Some(mut f) = self.frame.take() {
-                    f.image_data = Some(b);
+            Block::ImageData(image_data) => {
+                let graphic_control_ext = self.graphic_control_ext.take();
+                let image_desc = self.image_desc.take();
+                let local_color_table = self.local_color_table.take();
+                if let Some(image_desc) = image_desc {
+                    let f = Frame::new(graphic_control_ext, image_desc,
+                        local_color_table, image_data);
                     return Ok(Some(f));
                 } else {
-                    return Err(DecodeError::MalformedGif);
+                    return Err(DecodeError::InvalidBlockSequence);
                 }
             },
             _ => {},
@@ -200,7 +209,7 @@ impl<R: Read> BlockDecoder<R> {
                 self.expected_next = self.expected(b.0);
                 Ok(b)
             },
-            None => Err(DecodeError::MalformedGif),
+            None => Err(DecodeError::InvalidBlockCode),
         }
     }
     fn expected(&self, bc: BlockCode) -> Option<(BlockCode, usize)> {
@@ -546,10 +555,7 @@ mod test {
             2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
         ];
         for f in Decoder::new(&gif[..]).into_frame_decoder() {
-            match f?.image_data {
-                Some(im) => assert_eq!(im.data(), &image[..]),
-                None => assert!(false, "No image"),
-            }
+            assert_eq!(f?.image_data.data(), &image[..]);
         }
         Ok(())
     }

@@ -902,16 +902,26 @@ pub struct Preamble {
 }
 
 /// A single frame of a GIF animation.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Frame {
     /// Graphic control for the frame
     pub graphic_control_ext: Option<GraphicControl>,
     /// Image descriptor for the frame
-    pub image_desc: Option<ImageDesc>,
+    pub image_desc: ImageDesc,
     /// Local color table for the frame
     pub local_color_table: Option<LocalColorTable>,
     /// Image data for the frame
-    pub image_data: Option<ImageData>,
+    pub image_data: ImageData,
+}
+
+impl Frame {
+    /// Create a new frame
+    pub fn new(graphic_control_ext: Option<GraphicControl>,
+        image_desc: ImageDesc, local_color_table: Option<LocalColorTable>,
+        image_data: ImageData) -> Self
+    {
+        Frame { graphic_control_ext, image_desc, local_color_table, image_data }
+    }
 }
 
 #[cfg(test)]
