@@ -6,16 +6,19 @@
 use std::io::{self, BufWriter, Write};
 use crate::block::*;
 
+/// Encoder for GIF files.
 pub struct Encoder<W: Write> {
     writer: BufWriter<W>,
 }
 
 impl<W: Write> Encoder<W> {
+    /// Create a new GIF encoder.
     pub fn new(w: W) -> Self {
         Encoder {
             writer: BufWriter::new(w),
         }
     }
+    /// Encode one [Block](block/enum.Block.html).
     pub fn encode(&mut self, block: &Block) -> io::Result<()> {
         use crate::block::Block::*;
         let mut w = &mut self.writer;
@@ -37,6 +40,7 @@ impl<W: Write> Encoder<W> {
 }
 
 impl Header {
+    /// Format a header block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(b"GIF")?;
         w.write_all(&self.version())
@@ -44,6 +48,7 @@ impl Header {
 }
 
 impl LogicalScreenDesc {
+    /// Format a logical screen desc block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         let mut buf = Vec::with_capacity(7);
         let width = self.screen_width();
@@ -60,12 +65,14 @@ impl LogicalScreenDesc {
 }
 
 impl GlobalColorTable {
+    /// Format a global color table block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(self.colors())
     }
 }
 
 impl PlainText {
+    /// Format a plain text extension block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::PlainText_.into()])?;
@@ -80,6 +87,7 @@ impl PlainText {
 }
 
 impl GraphicControl {
+    /// Format a graphic control extension block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         let mut buf = Vec::with_capacity(7);
@@ -96,6 +104,7 @@ impl GraphicControl {
 }
 
 impl Comment {
+    /// Format a comment extension block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Comment_.into()])?;
@@ -110,6 +119,7 @@ impl Comment {
 }
 
 impl Application {
+    /// Format an application extension block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Application_.into()])?;
@@ -124,6 +134,7 @@ impl Application {
 }
 
 impl Unknown {
+    /// Format an unknown extension block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(self.ext_id())?;
@@ -138,6 +149,7 @@ impl Unknown {
 }
 
 impl ImageDesc {
+    /// Format an image desc block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::ImageDesc_.signature())?;
         let mut buf = Vec::with_capacity(9);
@@ -159,17 +171,20 @@ impl ImageDesc {
 }
 
 impl LocalColorTable {
+    /// Format a local color table block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(self.colors())
     }
 }
 
 impl ImageData {
+    /// Format an image data block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(&[self.min_code_size()])?;
         self.format_block(w)?;
         w.write_all(&[0])
     }
+    /// Format the entire "block" (including sub-blocks)
     fn format_block<W: Write>(&self, mut w: &mut BufWriter<W>)
         -> io::Result<()>
     {
@@ -177,6 +192,7 @@ impl ImageData {
         self.format_data(&mut bw)?;
         bw.flush()
     }
+    /// Format image data (with LZW encoding)
     fn format_data<W: Write>(&self, mut bw: &mut BlockWriter<W>)
         -> io::Result<()>
     {
@@ -186,12 +202,14 @@ impl ImageData {
     }
 }
 
+/// Block / sub-block writer
 struct BlockWriter<'a, W: Write> {
     writer: &'a mut BufWriter<W>,
     buf: Vec<u8>,
 }
 
 impl<'a, W: Write> BlockWriter<'a, W> {
+    /// Create a new block writer
     fn new(writer: &'a mut BufWriter<W>) -> Self {
         let buf = Vec::with_capacity(256);
         BlockWriter { writer, buf }
@@ -199,6 +217,7 @@ impl<'a, W: Write> BlockWriter<'a, W> {
 }
 
 impl<'a, W: Write> Write for BlockWriter<'a, W> {
+    /// Write a buffer
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let remaining = 0xFF - self.buf.len();
         let consumed = remaining.min(buf.len());
@@ -210,6 +229,7 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
         }
         Ok(consumed)
     }
+    /// Flush data remaining in the buffer
     fn flush(&mut self) -> io::Result<()> {
         let len = self.buf.len();
         if len > 0 {
@@ -222,6 +242,7 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
 }
 
 impl Trailer {
+    /// Format a trailer block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Trailer_.signature())
     }
