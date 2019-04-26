@@ -176,7 +176,7 @@ impl BlockCode {
         }
     }
     /// Get the block signature (if any).
-    pub fn signature(&self) -> &'static [u8] {
+    pub fn signature(self) -> &'static [u8] {
         use self::BlockCode::*;
         match self {
             ImageDesc_ => b",", // (0x2C) Image separator
@@ -186,7 +186,7 @@ impl BlockCode {
         }
     }
     /// Get the block size in bytes
-    pub fn size(&self) -> usize {
+    pub fn size(self) -> usize {
         use self::BlockCode::*;
         match self {
             Header_ => 6,
@@ -467,9 +467,10 @@ impl GraphicControl {
     /// Get the transparent color, if any
     pub fn transparent_color(&self) -> Option<u8> {
         let t = ((self.flags & Self::TRANSPARENT_COLOR) >> 1) != 0;
-        match t {
-            true => Some(self.transparent_color_idx),
-            false => None,
+        if t {
+            Some(self.transparent_color_idx)
+        } else {
+            None
         }
     }
     /// Get the transparent color index
@@ -556,8 +557,7 @@ impl Application {
                      d[1][0] == 1;              // sub-block ID
         if exists {
             // Number of times to loop animation (zero means loop forever)
-            let c = (d[1][1] as u16) << 8 | d[1][2] as u16;
-            Some(c)
+            Some(u16::from(d[1][1]) << 8 | u16::from(d[1][2]))
         } else {
             None
         }
@@ -691,7 +691,7 @@ impl ImageDesc {
     }
     /// Check the descriptor for local color table length
     fn color_table_len(&self) -> usize {
-        2 << ((self.flags & Self::COLOR_TABLE_SIZE) as u16)
+        2 << u16::from(self.flags & Self::COLOR_TABLE_SIZE)
     }
     /// Get the local color table configuration
     pub fn color_table_config(&self) -> ColorTableConfig {

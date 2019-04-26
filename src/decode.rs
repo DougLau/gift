@@ -333,7 +333,7 @@ impl<R: Read> BlockDecoder<R> {
             }
         }
         self.buffer.resize(len, 0);
-        return Ok(());
+        Ok(())
     }
     /// Decode one block
     fn decode_block(&mut self, bc: BlockCode, sz: usize)
@@ -463,8 +463,8 @@ impl LogicalScreenDesc {
     /// Decode a Logical Screen Descriptor block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::LogicalScreenDesc_.size());
-        let width = (buf[1] as u16) << 8 | buf[0] as u16;
-        let height = (buf[3] as u16) << 8 | buf[2] as u16;
+        let width  = u16::from(buf[1]) << 8 | u16::from(buf[0]);
+        let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
         let flags = buf[4];
         let bg_color = buf[5];
         let aspect = buf[6];
@@ -488,10 +488,10 @@ impl ImageDesc {
     /// Decode an Image Descriptor block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::ImageDesc_.size());
-        let left = (buf[2] as u16) << 8 | buf[1] as u16;
-        let top = (buf[4] as u16) << 8 | buf[3] as u16;
-        let width = (buf[6] as u16) << 8 | buf[5] as u16;
-        let height = (buf[8] as u16) << 8 | buf[7] as u16;
+        let left   = u16::from(buf[2]) << 8 | u16::from(buf[1]);
+        let top    = u16::from(buf[4]) << 8 | u16::from(buf[3]);
+        let width  = u16::from(buf[6]) << 8 | u16::from(buf[5]);
+        let height = u16::from(buf[8]) << 8 | u16::from(buf[7]);
         let flags = buf[9];
         Ok(Self::default()
             .with_left(left)
@@ -550,7 +550,7 @@ impl GraphicControl {
     fn parse_buf(&mut self, buf: &[u8]) -> Result<(), DecodeError> {
         if buf.len() == 4 {
             self.set_flags(buf[0]);
-            let delay = (buf[2] as u16) << 8 | buf[1] as u16;
+            let delay = u16::from(buf[2]) << 8 | u16::from(buf[1]);
             self.set_delay_time_cs(delay);
             self.set_transparent_color_idx(buf[3]);
             Ok(())
