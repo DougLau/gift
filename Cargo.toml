@@ -9,7 +9,7 @@ homepage = "https://github.com/DougLau/gift"
 repository = "https://github.com/DougLau/gift"
 readme = "README.md"
 keywords = ["gif", "image"]
-categories = ["decoding", "encoding"]
+categories = ["encoding"]
 edition = "2018"
 
 [dependencies]
