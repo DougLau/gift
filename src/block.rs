@@ -249,6 +249,13 @@ pub struct Header {
     version: [u8; 3],
 }
 
+impl Default for Header {
+    fn default() -> Self {
+        let version = *b"89a";
+        Header { version }
+    }
+}
+
 impl Header {
     /// Create a header block with a specific GIF version
     pub fn with_version(version: [u8; 3]) -> Self {
@@ -913,9 +920,9 @@ impl From<Trailer> for Block {
 #[derive(Debug, Default)]
 pub struct Preamble {
     /// Header block
-    pub header: Option<Header>,
+    pub header: Header,
     /// Logical screen descriptor block
-    pub logical_screen_desc: Option<LogicalScreenDesc>,
+    pub logical_screen_desc: LogicalScreenDesc,
     /// Global color table block
     pub global_color_table: Option<GlobalColorTable>,
     /// Loop count (application) extension block

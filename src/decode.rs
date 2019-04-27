@@ -140,12 +140,12 @@ impl<R: Read> FrameDecoder<R> {
         match block {
             Block::Header(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
-                    f.header = Some(b);
+                    f.header = b;
                 }
             }
             Block::LogicalScreenDesc(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
-                    f.logical_screen_desc = Some(b);
+                    f.logical_screen_desc = b;
                 }
             },
             Block::GlobalColorTable(b) => {
