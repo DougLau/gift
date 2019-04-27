@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+### Added
+* Preamble now contains Comment blocks
 ### Changed
 * Fixed assert failure with 256 byte sub-blocks
 * Made Header / LogicalScreenDesc not optional in Preamble

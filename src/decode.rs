@@ -160,6 +160,11 @@ impl<R: Read> FrameDecoder<R> {
                     f.loop_count_ext = Some(b);
                 }
             },
+            Block::Comment(b) => {
+                if let Some(ref mut f) = &mut self.preamble {
+                    f.comments.push(b);
+                }
+            },
             Block::GraphicControl(b) => {
                 if self.has_frame() {
                     return Err(DecodeError::InvalidBlockSequence);

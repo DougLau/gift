@@ -927,9 +927,14 @@ pub struct Preamble {
     pub global_color_table: Option<GlobalColorTable>,
     /// Loop count (application) extension block
     pub loop_count_ext: Option<Application>,
+    /// Comment blocks
+    pub comments: Vec<Comment>,
 }
 
 /// A single frame of a GIF animation.
+///
+/// Frames can be partial image which might depend on previous frames
+/// to have a complete image to render.
 #[derive(Debug)]
 pub struct Frame {
     /// Graphic control for the frame
