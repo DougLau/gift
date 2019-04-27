@@ -410,7 +410,7 @@ impl<R: Read> BlockDecoder<R> {
     fn parse_sub_block(&mut self, block: &mut Block, sz: usize)
         -> Result<(), DecodeError>
     {
-        assert!(sz < 256);
+        assert!(sz <= 256);
         use crate::block::Block::*;
         match block {
             PlainText(b) => b.parse_buf(&self.buffer[1..sz]),
