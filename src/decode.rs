@@ -52,7 +52,11 @@ impl<R: Read> Decoder<R> {
         self.max_image_sz = max_image_sz;
         self
     }
-    /// Convert the decoder into a frame decoder.
+    /// Convert into a block decoder.
+    pub fn into_block_decoder(self) -> BlockDecoder<R> {
+        BlockDecoder::new(self.reader, self.max_image_sz)
+    }
+    /// Convert into a frame decoder.
     pub fn into_frame_decoder(self) -> FrameDecoder<R> {
         FrameDecoder::new(self.into_iter())
     }
@@ -64,17 +68,17 @@ impl<R: Read> IntoIterator for Decoder<R> {
 
     /// Convert the decoder into a block decoder
     fn into_iter(self) -> Self::IntoIter {
-        BlockDecoder::new(self.reader, self.max_image_sz)
+        self.into_block_decoder()
     }
 }
 
 /// A frame decoder is an iterator for [Frame](block/struct.Frame.html)s within
 /// a GIF file.
 ///
-/// It can only be created with
+/// It can be created with
 /// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
 pub struct FrameDecoder<R: Read> {
-    block_iter: BlockDecoder<R>,
+    block_dec: BlockDecoder<R>,
     preamble: Option<Preamble>,
     graphic_control_ext: Option<GraphicControl>,
     image_desc: Option<ImageDesc>,
@@ -85,7 +89,7 @@ impl<R: Read> Iterator for FrameDecoder<R> {
     type Item = Result<Frame, DecodeError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(block) = self.block_iter.next() {
+        while let Some(block) = self.block_dec.next() {
             match block {
                 Ok(b) => {
                     match self.handle_block(b) {
@@ -103,9 +107,9 @@ impl<R: Read> Iterator for FrameDecoder<R> {
 
 impl<R: Read> FrameDecoder<R> {
     /// Create a new frame decoder
-    fn new(block_iter: BlockDecoder<R>) -> Self {
+    pub fn new(block_dec: BlockDecoder<R>) -> Self {
         FrameDecoder {
-            block_iter,
+            block_dec,
             preamble: None,
             graphic_control_ext: None,
             image_desc: None,
@@ -119,13 +123,13 @@ impl<R: Read> FrameDecoder<R> {
             return Ok(None);
         }
         self.preamble = Some(Preamble::default());
-        while let Some(block) = self.block_iter.next() {
+        while let Some(block) = self.block_dec.next() {
             self.handle_block(block?)?;
             if self.has_frame() {
-                break;
+                return Ok(self.preamble.take());
             }
         }
-        Ok(self.preamble.take())
+        Err(DecodeError::InvalidBlockSequence)
     }
     /// Check if any frame blocks exist
     fn has_frame(&self) -> bool {
