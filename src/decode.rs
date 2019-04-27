@@ -519,8 +519,10 @@ impl ImageData {
     fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
         let min_code_size = buf[0];
-        if min_code_size <= 12 {
-            Ok(Self::new(image_sz, min_code_size))
+        let selfy = Self::new(image_sz, min_code_size);
+        // check if min_code_size was valid
+        if selfy.min_code_size() == min_code_size {
+            Ok(selfy)
         } else {
             Err(DecodeError::InvalidCodeSize)
         }

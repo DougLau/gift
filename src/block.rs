@@ -761,7 +761,8 @@ impl ImageData {
     pub fn new(image_sz: usize, min_code_size: u8) -> Self {
         // Reserve an extra byte for min_code_size (first)
         let mut data = Vec::with_capacity(image_sz + 1);
-        data.push(min_code_size);
+        // minimum code size must be between 2 and 12
+        data.push(2.max(min_code_size).min(12));
         ImageData { data }
     }
     /// Check if the image data is complete
@@ -781,20 +782,13 @@ impl ImageData {
     }
     /// Get the minimum code size
     pub fn min_code_size(&self) -> u8 {
-        if self.data.len() > 0 {
-            self.data[0]
-        } else {
-            2
-        }.max(2)    // must be >= 2
+        // first byte must contain min_code_size
+        self.data[0]
     }
     /// Get the image data
     pub fn data(&self) -> &[u8] {
         // Skip the LZW minimum code size
-        if self.data.len() > 0 {
-            &self.data[1..]
-        } else {
-            b""
-        }
+        &self.data[1..]
     }
 }
 
