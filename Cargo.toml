@@ -1,6 +1,6 @@
 [package]
 name = "gift"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Doug Lau <doug.p.lau@gmail.com>"]
 description = "A library for reading and writing GIF images"
 license = "MIT OR Apache-2.0"

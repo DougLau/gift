@@ -2,6 +2,8 @@
 
 ### Added
 * Preamble now contains Comment blocks
+* Logo!
+* Decoder::into_block_decoder()
 ### Changed
 * Fixed assert failure with 256 byte sub-blocks
 * Made Header / LogicalScreenDesc not optional in Preamble

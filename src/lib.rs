@@ -6,6 +6,9 @@
 //!
 //! A decoder and encoder for GIF images.
 //!
+#![doc(html_logo_url = "https://raw.githubusercontent.com/DougLau/gift/master/res/gift_logo.gif")]
+#![forbid(unsafe_code)]
+
 #[macro_use]
 extern crate log;
 
