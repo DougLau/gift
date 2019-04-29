@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+* GraphicControl::transparent_color() always false
+
 ## [0.1.1 - 2019-04-28]
 ### Added
 * Preamble now contains Comment blocks

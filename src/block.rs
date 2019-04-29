@@ -456,7 +456,7 @@ impl GraphicControl {
     }
     /// Get the user input flag
     pub fn user_input(&self) -> bool {
-        ((self.flags & Self::USER_INPUT) >> 1) != 0
+        (self.flags & Self::USER_INPUT) != 0
     }
     /// Set the user input flag
     pub fn set_user_input(&mut self, user_input: bool) {
@@ -473,7 +473,7 @@ impl GraphicControl {
     }
     /// Get the transparent color, if any
     pub fn transparent_color(&self) -> Option<u8> {
-        let t = ((self.flags & Self::TRANSPARENT_COLOR) >> 1) != 0;
+        let t = (self.flags & Self::TRANSPARENT_COLOR) != 0;
         if t {
             Some(self.transparent_color_idx)
         } else {
