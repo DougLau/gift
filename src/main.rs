@@ -143,7 +143,7 @@ fn write_frame(frame: &Frame, out: &mut StandardStream, width: u16,
         "-"
     };
     out.set_color(match d {
-        "none"|"bg"|"-" => &dflt,
+        "none"|"-" => &dflt,
         "res" => &red,
         _ => &bold,
     })?;
