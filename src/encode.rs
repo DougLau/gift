@@ -223,6 +223,9 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
         let consumed = remaining.min(buf.len());
         self.buf.extend_from_slice(&buf[..consumed]);
         if self.buf.len() == 0xFF {
+            // Technically, we're only supposed to make one attempt to write to
+            // the wrapped BufWriter.  Since we're adding the 0xFF length
+            // at the beginning, we can't allow writes to be split up.
             self.writer.write_all(&[0xFF])?;
             self.writer.write_all(&self.buf)?;
             self.buf.clear();
