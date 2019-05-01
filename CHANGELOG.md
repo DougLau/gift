@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.2.0] - 2019-05-01
 ### Added
 * Decoder::into_raster_decoder gives iterator of Rgba8 rasters in animation.
 * Preamble::screen_width / screen_height methods
@@ -9,7 +10,7 @@
 * Decoder::into_iter now returns a RasterDecoder
 * Made default max_image_size 33,554,432 bytes (2<sup>25</sup>)
 
-## [0.1.1 - 2019-04-28]
+## [0.1.1] - 2019-04-28
 ### Added
 * Preamble now contains Comment blocks
 * Logo!
