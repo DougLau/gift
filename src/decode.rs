@@ -44,7 +44,7 @@ impl<R: Read> Decoder<R> {
     pub fn new(r: R) -> Self {
         Decoder {
             reader: BufReader::new(r),
-            max_image_sz: None,
+            max_image_sz: Some(1 << 25),
         }
     }
     /// Set the maximum image size (in bytes) to allow for decoding.

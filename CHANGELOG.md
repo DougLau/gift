@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+### Added
+* Made default max_image_size 33,554,432 bytes (2<sup>25</sup>)
 ### Fixed
 * GraphicControl::transparent_color() always false
 
