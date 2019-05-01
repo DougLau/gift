@@ -5,15 +5,17 @@
 
 use std::io::{ErrorKind, BufReader, Read};
 use lzw;
+use pix::{Raster, Rgba8};
 use crate::error::DecodeError;
 use crate::block::*;
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
 
-/// A builder which can be turned into either a
-/// [BlockDecoder](struct.BlockDecoder.html) or a
-/// [FrameDecoder](struct.FrameDecoder.html).
+/// A builder which can be turned into a
+/// [BlockDecoder](struct.BlockDecoder.html), a
+/// [FrameDecoder](struct.FrameDecoder.html) or a
+/// [RasterDecoder](struct.RasterDecoder.html).
 ///
 /// ## Example
 /// ```
@@ -58,147 +60,21 @@ impl<R: Read> Decoder<R> {
     }
     /// Convert into a frame decoder.
     pub fn into_frame_decoder(self) -> FrameDecoder<R> {
-        FrameDecoder::new(self.into_iter())
+        FrameDecoder::new(self.into_block_decoder())
+    }
+    /// Convert into a raster decoder.
+    pub fn into_raster_decoder(self) -> RasterDecoder<R> {
+        RasterDecoder::new(self.into_frame_decoder())
     }
 }
 
 impl<R: Read> IntoIterator for Decoder<R> {
-    type Item = Result<Block, DecodeError>;
-    type IntoIter = BlockDecoder<R>;
+    type Item = Result<Raster<Rgba8>, DecodeError>;
+    type IntoIter = RasterDecoder<R>;
 
-    /// Convert the decoder into a block decoder
+    /// Convert the decoder into a raster decoder
     fn into_iter(self) -> Self::IntoIter {
-        self.into_block_decoder()
-    }
-}
-
-/// A frame decoder is an iterator for [Frame](block/struct.Frame.html)s within
-/// a GIF file.
-///
-/// It can be created with
-/// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
-pub struct FrameDecoder<R: Read> {
-    block_dec: BlockDecoder<R>,
-    preamble: Option<Preamble>,
-    graphic_control_ext: Option<GraphicControl>,
-    image_desc: Option<ImageDesc>,
-    local_color_table: Option<LocalColorTable>,
-}
-
-impl<R: Read> Iterator for FrameDecoder<R> {
-    type Item = Result<Frame, DecodeError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(block) = self.block_dec.next() {
-            match block {
-                Ok(b) => {
-                    match self.handle_block(b) {
-                        Ok(Some(f)) => return Some(Ok(f)),  // transpose
-                        Ok(None) => {}, // need more blocks
-                        Err(e) => return Some(Err(e)),
-                    }
-                },
-                Err(e) => return Some(Err(e)),
-            }
-        }
-        None
-    }
-}
-
-impl<R: Read> FrameDecoder<R> {
-    /// Create a new frame decoder
-    pub fn new(block_dec: BlockDecoder<R>) -> Self {
-        FrameDecoder {
-            block_dec,
-            preamble: None,
-            graphic_control_ext: None,
-            image_desc: None,
-            local_color_table: None,
-        }
-    }
-    /// Read preamble blocks.  These are the blocks at the beginning of the
-    /// file, before any frame blocks.
-    pub fn preamble(&mut self) -> Result<Option<Preamble>, DecodeError> {
-        if self.has_frame() {
-            return Ok(None);
-        }
-        self.preamble = Some(Preamble::default());
-        while let Some(block) = self.block_dec.next() {
-            self.handle_block(block?)?;
-            if self.has_frame() {
-                return Ok(self.preamble.take());
-            }
-        }
-        Err(DecodeError::InvalidBlockSequence)
-    }
-    /// Check if any frame blocks exist
-    fn has_frame(&self) -> bool {
-        self.graphic_control_ext.is_some() ||
-        self.image_desc.is_some() ||
-        self.local_color_table.is_some()
-    }
-    /// Handle one block
-    fn handle_block(&mut self, block: Block)
-        -> Result<Option<Frame>, DecodeError>
-    {
-        match block {
-            Block::Header(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
-                    f.header = b;
-                }
-            }
-            Block::LogicalScreenDesc(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
-                    f.logical_screen_desc = b;
-                }
-            },
-            Block::GlobalColorTable(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
-                    f.global_color_table = Some(b);
-                }
-            },
-            Block::Application(b) => {
-                if let (Some(ref mut f), Some(_)) =
-                    (&mut self.preamble, b.loop_count())
-                {
-                    f.loop_count_ext = Some(b);
-                }
-            },
-            Block::Comment(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
-                    f.comments.push(b);
-                }
-            },
-            Block::GraphicControl(b) => {
-                if self.has_frame() {
-                    return Err(DecodeError::InvalidBlockSequence);
-                }
-                self.graphic_control_ext = Some(b);
-            },
-            Block::ImageDesc(b) => {
-                if self.image_desc.is_some() {
-                    return Err(DecodeError::InvalidBlockSequence);
-                }
-                self.image_desc = Some(b);
-            },
-            Block::LocalColorTable(b) => {
-                self.local_color_table = Some(b);
-            },
-            Block::ImageData(image_data) => {
-                let graphic_control_ext = self.graphic_control_ext.take();
-                let image_desc = self.image_desc.take();
-                let local_color_table = self.local_color_table.take();
-                if let Some(image_desc) = image_desc {
-                    let f = Frame::new(graphic_control_ext, image_desc,
-                        local_color_table, image_data);
-                    return Ok(Some(f));
-                } else {
-                    return Err(DecodeError::InvalidBlockSequence);
-                }
-            },
-            _ => {},
-        }
-        Ok(None)
+        self.into_raster_decoder()
     }
 }
 
@@ -605,24 +481,273 @@ impl ImageData {
     }
 }
 
+/// A frame decoder is an iterator for [Frame](block/struct.Frame.html)s within
+/// a GIF file.
+///
+/// It can be created with
+/// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
+pub struct FrameDecoder<R: Read> {
+    block_dec: BlockDecoder<R>,
+    preamble: Option<Preamble>,
+    graphic_control_ext: Option<GraphicControl>,
+    image_desc: Option<ImageDesc>,
+    local_color_table: Option<LocalColorTable>,
+}
+
+impl<R: Read> Iterator for FrameDecoder<R> {
+    type Item = Result<Frame, DecodeError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(block) = self.block_dec.next() {
+            match block {
+                Ok(b) => {
+                    match self.handle_block(b) {
+                        Ok(Some(f)) => return Some(Ok(f)),  // transpose
+                        Ok(None) => {}, // need more blocks
+                        Err(e) => return Some(Err(e)),
+                    }
+                },
+                Err(e) => return Some(Err(e)),
+            }
+        }
+        None
+    }
+}
+
+impl<R: Read> FrameDecoder<R> {
+    /// Create a new frame decoder
+    pub fn new(block_dec: BlockDecoder<R>) -> Self {
+        FrameDecoder {
+            block_dec,
+            preamble: None,
+            graphic_control_ext: None,
+            image_desc: None,
+            local_color_table: None,
+        }
+    }
+    /// Read preamble blocks.  These are the blocks at the beginning of the
+    /// file, before any frame blocks.
+    pub fn preamble(&mut self) -> Result<Option<Preamble>, DecodeError> {
+        if self.has_frame() {
+            return Ok(None);
+        }
+        self.preamble = Some(Preamble::default());
+        while let Some(block) = self.block_dec.next() {
+            self.handle_block(block?)?;
+            if self.has_frame() {
+                return Ok(self.preamble.take());
+            }
+        }
+        Err(DecodeError::InvalidBlockSequence)
+    }
+    /// Check if any frame blocks exist
+    fn has_frame(&self) -> bool {
+        self.graphic_control_ext.is_some() ||
+        self.image_desc.is_some() ||
+        self.local_color_table.is_some()
+    }
+    /// Handle one block
+    fn handle_block(&mut self, block: Block)
+        -> Result<Option<Frame>, DecodeError>
+    {
+        match block {
+            Block::Header(b) => {
+                if let Some(ref mut f) = &mut self.preamble {
+                    f.header = b;
+                }
+            }
+            Block::LogicalScreenDesc(b) => {
+                if let Some(ref mut f) = &mut self.preamble {
+                    f.logical_screen_desc = b;
+                }
+            },
+            Block::GlobalColorTable(b) => {
+                if let Some(ref mut f) = &mut self.preamble {
+                    f.global_color_table = Some(b);
+                }
+            },
+            Block::Application(b) => {
+                if let (Some(ref mut f), Some(_)) =
+                    (&mut self.preamble, b.loop_count())
+                {
+                    f.loop_count_ext = Some(b);
+                }
+            },
+            Block::Comment(b) => {
+                if let Some(ref mut f) = &mut self.preamble {
+                    f.comments.push(b);
+                }
+            },
+            Block::GraphicControl(b) => {
+                if self.has_frame() {
+                    return Err(DecodeError::InvalidBlockSequence);
+                }
+                self.graphic_control_ext = Some(b);
+            },
+            Block::ImageDesc(b) => {
+                if self.image_desc.is_some() {
+                    return Err(DecodeError::InvalidBlockSequence);
+                }
+                self.image_desc = Some(b);
+            },
+            Block::LocalColorTable(b) => {
+                self.local_color_table = Some(b);
+            },
+            Block::ImageData(image_data) => {
+                let graphic_control_ext = self.graphic_control_ext.take();
+                let image_desc = self.image_desc.take();
+                let local_color_table = self.local_color_table.take();
+                if let Some(image_desc) = image_desc {
+                    let f = Frame::new(graphic_control_ext, image_desc,
+                        local_color_table, image_data);
+                    return Ok(Some(f));
+                } else {
+                    return Err(DecodeError::InvalidBlockSequence);
+                }
+            },
+            _ => {},
+        }
+        Ok(None)
+    }
+}
+
+/// A raster decoder is an iterator for Rasters within a GIF file.
+///
+/// It can be created with
+/// Decoder.[into_raster_decoder](struct.Decoder.html#method.into_raster_decoder).
+pub struct RasterDecoder<R: Read> {
+    frame_dec: FrameDecoder<R>,
+    global_color_table: Option<GlobalColorTable>,
+    raster: Option<Raster<Rgba8>>, // FIXME: parameterize pix trait
+}
+
+impl<R: Read> Iterator for RasterDecoder<R> {
+    // FIXME: need delay time (and color table for indexed rasters)
+    type Item = Result<Raster<Rgba8>, DecodeError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let None = self.raster {
+            if let Err(e) = self.make_raster() {
+                return Some(Err(e));
+            }
+        }
+        match self.raster {
+            Some(_) => self.next_raster(),
+            None => None,
+        }
+    }
+}
+
+impl<R: Read> RasterDecoder<R> {
+    /// Create a new raster decoder
+    pub fn new(frame_dec: FrameDecoder<R>) -> Self {
+        RasterDecoder {
+            frame_dec,
+            global_color_table: None,
+            raster: None,
+        }
+    }
+    /// Make the initial raster
+    fn make_raster(&mut self) -> Result<(), DecodeError> {
+        if let Some(mut p) = self.frame_dec.preamble()? {
+            self.global_color_table = p.global_color_table.take();
+            let w = p.screen_width().into();
+            let h = p.screen_height().into();
+            self.raster = Some(Raster::<Rgba8>::new(w, h));
+            Ok(())
+        } else {
+            warn!("Preamble not found!");
+            Ok(())
+        }
+    }
+    /// Get the next raster
+    fn next_raster(&mut self) -> Option<Result<Raster<Rgba8>, DecodeError>> {
+        assert!(self.raster.is_some());
+        match self.frame_dec.next() {
+            Some(Ok(f)) => Some(self.apply_frame(f)),
+            Some(Err(e)) => Some(Err(e)),
+            None => None,
+        }
+    }
+    /// Apply a frame to the raster
+    fn apply_frame(&mut self, f: Frame) -> Result<Raster<Rgba8>, DecodeError> {
+        let r = if let DisposalMethod::Previous = f.disposal_method() {
+            let mut r = self.raster.as_ref().unwrap().clone();
+            update_raster(&mut r, &f, &self.global_color_table)?;
+            r
+        } else {
+            let mut r = self.raster.as_mut().unwrap();
+            update_raster(&mut r, &f, &self.global_color_table)?;
+            r.clone()
+        };
+        if let DisposalMethod::Background = f.disposal_method() {
+            let x = f.left().into();
+            let y = f.top().into();
+            let w = f.width().into();
+            let h = f.height().into();
+            let rs = self.raster.as_mut().unwrap();
+            rs.set_rect(x, y, w, h, Rgba8::default());
+        }
+        Ok(r)
+    }
+}
+
+/// Update a raster with a new frame
+fn update_raster(r: &mut Raster<Rgba8>, f: &Frame, t: &Option<GlobalColorTable>)
+    -> Result<(), DecodeError>
+{
+    let x: u32 = f.left().into();
+    let y: u32 = f.top().into();
+    let w: u32 = f.width().into();
+    let h: u32 = f.height().into();
+    if x + w <= r.width() && y + h <= r.height() {
+        let clrs = if let Some(c) = &f.local_color_table {
+            c.colors()
+        } else if let Some(c) = t {
+            c.colors()
+        } else {
+            return Err(DecodeError::MissingColorTable);
+        };
+        let trans = f.transparent_color();
+        for yi in y..y+h {
+            let yr = yi * r.width();
+            for xi in x..x+w {
+                let idx = f.image_data.data()[(yr + xi) as usize];
+                let i = 3 * idx as usize;
+                if i + 2 > clrs.len() {
+                    return Err(DecodeError::InvalidColorIndex);
+                }
+                let p = match trans {
+                    Some(t) if t == idx => Rgba8::default(),
+                    _ => Rgba8::new(clrs[i], clrs[i+1], clrs[i+2], 0xFF),
+                };
+                r.set_pixel(xi, yi, p);
+            }
+        }
+        Ok(())
+    } else {
+        Err(DecodeError::InvalidFrameDimensions)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::error::Error;
     use super::Decoder;
+    const GIF_1: &[u8] = &[
+        0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00,
+        0x0A, 0x00, 0x91, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
+        0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00,
+        0x00, 0x21, 0xF9, 0x04, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00,
+        0x0A, 0x00, 0x00, 0x02, 0x16, 0x8C, 0x2D, 0x99,
+        0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75,
+        0xEC, 0x95, 0xFA, 0xA8, 0xDE, 0x60, 0x8C, 0x04,
+        0x91, 0x4C, 0x01, 0x00, 0x3B,
+    ];
     #[test]
-    fn simple_1() -> Result<(), Box<Error>> {
-        let gif = [
-            0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00,
-            0x0A, 0x00, 0x91, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
-            0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00,
-            0x00, 0x21, 0xF9, 0x04, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00,
-            0x0A, 0x00, 0x00, 0x02, 0x16, 0x8C, 0x2D, 0x99,
-            0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75,
-            0xEC, 0x95, 0xFA, 0xA8, 0xDE, 0x60, 0x8C, 0x04,
-            0x91, 0x4C, 0x01, 0x00, 0x3B,
-        ];
-        let image = [
+    fn frame_1() -> Result<(), Box<Error>> {
+        let image = &[
             1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
             1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
             1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
@@ -633,9 +758,32 @@ mod test {
             2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
             2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
             2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
-        ];
-        for f in Decoder::new(&gif[..]).into_frame_decoder() {
-            assert_eq!(f?.image_data.data(), &image[..]);
+        ][..];
+        for f in Decoder::new(GIF_1).into_frame_decoder() {
+            assert_eq!(f?.image_data.data(), image);
+        }
+        Ok(())
+    }
+    #[test]
+    fn image_1() -> Result<(), Box<Error>> {
+        use pix::Rgba8;
+        let red = Rgba8::new(0xFF, 0x00, 0x00, 0xFF);
+        let blu = Rgba8::new(0x00, 0x00, 0xFF, 0xFF);
+        let wht = Rgba8::new(0xFF, 0xFF, 0xFF, 0xFF);
+        let image = &[
+            red,red,red,red,red,blu,blu,blu,blu,blu,
+            red,red,red,red,red,blu,blu,blu,blu,blu,
+            red,red,red,red,red,blu,blu,blu,blu,blu,
+            red,red,red,wht,wht,wht,wht,blu,blu,blu,
+            red,red,red,wht,wht,wht,wht,blu,blu,blu,
+            blu,blu,blu,wht,wht,wht,wht,red,red,red,
+            blu,blu,blu,wht,wht,wht,wht,red,red,red,
+            blu,blu,blu,blu,blu,red,red,red,red,red,
+            blu,blu,blu,blu,blu,red,red,red,red,red,
+            blu,blu,blu,blu,blu,red,red,red,red,red,
+        ][..];
+        for r in Decoder::new(GIF_1).into_raster_decoder() {
+            assert_eq!(r?.as_slice(), image);
         }
         Ok(())
     }

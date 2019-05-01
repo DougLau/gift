@@ -31,6 +31,12 @@ pub enum DecodeError {
     TooLargeImage,
     /// [ImageData](block/struct.ImageData.html) block is incomplete.
     IncompleteImageData,
+    /// Frame location / size larger than sreen size.
+    InvalidFrameDimensions,
+    /// Missing color table for a frame.
+    MissingColorTable,
+    /// Invalid color index in a frame.
+    InvalidColorIndex,
 }
 
 impl fmt::Display for DecodeError {

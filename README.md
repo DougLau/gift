@@ -16,6 +16,4 @@ for frame in frame_dec {
 
 ## TODO
 
-* Building images from frame sequences
 * Interlaced images
-* Non-indexed (24-bit) buffers

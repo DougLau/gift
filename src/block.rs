@@ -960,6 +960,36 @@ impl Frame {
     {
         Frame { graphic_control_ext, image_desc, local_color_table, image_data }
     }
+    /// Get the frame disposal method
+    pub fn disposal_method(&self) -> DisposalMethod {
+        match &self.graphic_control_ext {
+            Some(gc) => gc.disposal_method(),
+            None => DisposalMethod::NoAction,
+        }
+    }
+    /// Get the frame transparent color
+    pub fn transparent_color(&self) -> Option<u8> {
+        match &self.graphic_control_ext {
+            Some(gc) => gc.transparent_color(),
+            None => None,
+        }
+    }
+    /// Get the left position
+    pub fn left(&self) -> u16 {
+        self.image_desc.left()
+    }
+    /// Get the top position
+    pub fn top(&self) -> u16 {
+        self.image_desc.top()
+    }
+    /// Get the width
+    pub fn width(&self) -> u16 {
+        self.image_desc.width()
+    }
+    /// Get the height
+    pub fn height(&self) -> u16 {
+        self.image_desc.height()
+    }
 }
 
 #[cfg(test)]
