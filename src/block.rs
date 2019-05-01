@@ -925,6 +925,17 @@ pub struct Preamble {
     pub comments: Vec<Comment>,
 }
 
+impl Preamble {
+    /// Get the screen width
+    pub fn screen_width(&self) -> u16 {
+        self.logical_screen_desc.screen_width()
+    }
+    /// Get the screen height
+    pub fn screen_height(&self) -> u16 {
+        self.logical_screen_desc.screen_height()
+    }
+}
+
 /// A single frame of a GIF animation.
 ///
 /// Frames can be partial image which might depend on previous frames

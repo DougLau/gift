@@ -57,8 +57,8 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
         frames.push(f?);
     }
     let frame_digits = digits(frames.len()).max(3);
-    let width = preamble.logical_screen_desc.screen_width();
-    let height = preamble.logical_screen_desc.screen_height();
+    let width = preamble.screen_width();
+    let height = preamble.screen_height();
     let size_digits = 4.max(1 + digits(width) + digits(height));
     let gif = String::from_utf8_lossy(&preamble.header.version()).to_string();
     let mut comments = vec![];
