@@ -244,7 +244,7 @@ impl From<ExtensionCode> for u8 {
 /// The header contains the
 /// [magic](https://en.wikipedia.org/wiki/File_format#Magic_number)
 /// string "GIF", followed by a version number.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Header {
     version: [u8; 3],
 }
@@ -269,7 +269,7 @@ impl Header {
 
 /// The logical screen descriptor contains properties which apply to all frames
 /// in the file.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct LogicalScreenDesc {
     screen_width: u16,
     screen_height: u16,
@@ -381,7 +381,7 @@ impl LogicalScreenDesc {
 
 /// The global color table, if present, is used for all frames which do not
 /// define a [LocalColorTable](struct.LocalColorTable.html).
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct GlobalColorTable {
     colors: Vec<u8>,
 }
@@ -404,7 +404,7 @@ impl GlobalColorTable {
 }
 
 /// The plain text extension block is an obsolete GIF feature.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct PlainText {
     sub_blocks: Vec<Vec<u8>>,   // sequence of sub-blocks
 }
@@ -423,7 +423,7 @@ impl PlainText {
 
 /// The graphic control extension block contains animation parameters for one
 /// frame.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct GraphicControl {
     flags: u8,
     delay_time_cs: u16,      // delay in centiseconds (hundredths of a second)
@@ -505,7 +505,7 @@ impl GraphicControl {
 
 /// A comment extension block contains unstructured file metadata.
 /// The specification recommends using the ASCII encoding.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Comment {
     comments: Vec<Vec<u8>>,
 }
@@ -524,7 +524,7 @@ impl Comment {
 
 /// The application extension block is typically only used to enable looping
 /// animation.  Other uses are ignored by most GIF readers.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Application {
     app_data: Vec<Vec<u8>>,     // sequence of sub-blocks
 }
@@ -573,7 +573,7 @@ impl Application {
 
 /// Unknown extension blocks should not exist, but might be generated
 /// by non-standard encoders.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Unknown {
     sub_blocks: Vec<Vec<u8>>,   // sequence of sub-blocks (first has ext_id)
 }
@@ -603,7 +603,7 @@ impl Unknown {
 }
 
 /// The image descriptor block contains properties which apply to one frame.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct ImageDesc {
     left: u16,
     top: u16,
@@ -728,7 +728,7 @@ impl ImageDesc {
 
 /// The local color table, if present, must immediately
 /// follow an image descriptor block.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct LocalColorTable {
     colors: Vec<u8>,
 }
@@ -751,7 +751,7 @@ impl LocalColorTable {
 }
 
 /// An image data block contains image data for one frame.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ImageData {
     data: Vec<u8>,  // first byte of data is LZW minimum code size
 }
@@ -793,7 +793,7 @@ impl ImageData {
 }
 
 /// The trailer block indicates the end of a GIF file.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Trailer { }
 
 /// A block within a GIF file.
