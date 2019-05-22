@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Removed
+* FrameDecoder::new and RasterDecoder::new no longer public.
+
 ## [0.2.0] - 2019-05-01
 ### Added
 * Decoder::into_raster_decoder gives iterator of Rgba8 rasters in animation.
