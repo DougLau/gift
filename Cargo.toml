@@ -15,7 +15,7 @@ edition = "2018"
 [dependencies]
 log = "0.4"
 lzw = "0.10"
-pix = "0.2"
+pix = "0.6"
 
 # NOTE: for cmd only -- lib has no optional features
 termcolor = { version = "1.0.4", optional = true }

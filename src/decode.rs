@@ -5,37 +5,20 @@
 
 use std::io::{ErrorKind, BufReader, Read};
 use lzw;
-use pix::{Raster, Rgba8};
+use pix::{Raster, RasterBuilder, Region, Rgba8};
 use crate::error::DecodeError;
 use crate::block::*;
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
 
-/// A builder which can be turned into a
-/// [BlockDecoder](struct.BlockDecoder.html), a
-/// [FrameDecoder](struct.FrameDecoder.html) or a
-/// [RasterDecoder](struct.RasterDecoder.html).
+/// A builder for GIF decoders.
 ///
-/// ## Example
-/// ```
-/// # fn main() -> Result<(), Box<std::error::Error>> {
-/// # let gif = &[
-/// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
-/// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
-/// #   0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
-/// #   0x02, 0x00, 0x02, 0x00, 0x00, 0x02, 0x03, 0x0c,
-/// #   0x10, 0x05, 0x00, 0x3b,
-/// # ][..];
-/// let mut frame_dec = gift::Decoder::new(gif).into_frame_decoder();
-/// let preamble = frame_dec.preamble()?;
-/// println!("preamble: {:?}", preamble);
-/// for frame in frame_dec {
-///     println!("frame: {:?}", frame?);
-/// }
-/// # Ok(())
-/// # }
-/// ```
+/// * [BlockDecoder](struct.BlockDecoder.html) — low-level,
+///   [Block](block/enum.Block.html)s
+/// * [FrameDecoder](struct.FrameDecoder.html) — mid-level,
+///   [Frame](block/struct.Frame.html)s
+/// * [RasterDecoder](struct.RasterDecoder.html) — high-level, Rasters
 pub struct Decoder<R: Read> {
     reader: BufReader<R>,
     max_image_sz: Option<usize>,
@@ -72,17 +55,40 @@ impl<R: Read> IntoIterator for Decoder<R> {
     type Item = Result<Raster<Rgba8>, DecodeError>;
     type IntoIter = RasterDecoder<R>;
 
-    /// Convert the decoder into a raster decoder
+    /// Convert into a raster decoder
     fn into_iter(self) -> Self::IntoIter {
         self.into_raster_decoder()
     }
 }
 
-/// A block decoder can iterate over every [Block](block/enum.Block.html) in a
-/// GIF file.
+/// A decoder for iterating [Block](block/enum.Block.html)s within a GIF file.
 ///
-/// It can only be created with
-/// Decoder.[into_iter](struct.Decoder.html#method.into_iter).
+/// Build with
+/// Decoder.[into_block_iter](struct.Decoder.html#method.into_block_iter).
+///
+/// ## Example: Read comments in a GIF
+/// ```
+/// # use crate::gift::block::Block;
+/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # let gif = &[
+/// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
+/// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
+/// #   0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
+/// #   0x02, 0x00, 0x02, 0x00, 0x00, 0x02, 0x03, 0x0c,
+/// #   0x10, 0x05, 0x00, 0x3b,
+/// # ][..];
+/// // ... open a File as "gif"
+/// let block_dec = gift::Decoder::new(gif).into_block_decoder();
+/// for block in block_dec {
+///     if let Block::Comment(b) = block? {
+///         for c in b.comments() {
+///             println!("{}", &String::from_utf8_lossy(&c));
+///         }
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct BlockDecoder<R: Read> {
     reader: BufReader<R>,
     max_image_sz: Option<usize>,
@@ -481,11 +487,27 @@ impl ImageData {
     }
 }
 
-/// A frame decoder is an iterator for [Frame](block/struct.Frame.html)s within
-/// a GIF file.
+/// A decoder for iterating [Frame](block/struct.Frame.html)s within a GIF file.
 ///
-/// It can be created with
+/// Build with
 /// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
+///
+/// ## Example: Count frames in a GIF
+/// ```
+/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # let gif = &[
+/// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
+/// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
+/// #   0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
+/// #   0x02, 0x00, 0x02, 0x00, 0x00, 0x02, 0x03, 0x0c,
+/// #   0x10, 0x05, 0x00, 0x3b,
+/// # ][..];
+/// // ... open a File as "gif"
+/// let frame_dec = gift::Decoder::new(gif).into_frame_decoder();
+/// println!("frame count: {}", frame_dec.count());
+/// # Ok(())
+/// # }
+/// ```
 pub struct FrameDecoder<R: Read> {
     block_dec: BlockDecoder<R>,
     preamble: Option<Preamble>,
@@ -516,7 +538,7 @@ impl<R: Read> Iterator for FrameDecoder<R> {
 
 impl<R: Read> FrameDecoder<R> {
     /// Create a new frame decoder
-    pub fn new(block_dec: BlockDecoder<R>) -> Self {
+    fn new(block_dec: BlockDecoder<R>) -> Self {
         FrameDecoder {
             block_dec,
             preamble: None,
@@ -611,10 +633,29 @@ impl<R: Read> FrameDecoder<R> {
     }
 }
 
-/// A raster decoder is an iterator for Rasters within a GIF file.
+/// A decoder for iterating Rasters within a GIF file.
 ///
-/// It can be created with
+/// Build with
 /// Decoder.[into_raster_decoder](struct.Decoder.html#method.into_raster_decoder).
+///
+/// ## Example: Get the last raster in a GIF animation
+/// ```
+/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # let gif = &[
+/// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
+/// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
+/// #   0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
+/// #   0x02, 0x00, 0x02, 0x00, 0x00, 0x02, 0x03, 0x0c,
+/// #   0x10, 0x05, 0x00, 0x3b,
+/// # ][..];
+/// // ... open a File as "gif"
+/// let raster_dec = gift::Decoder::new(gif).into_raster_decoder();
+/// if let Some(raster) = raster_dec.last() {
+///     // work with raster
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct RasterDecoder<R: Read> {
     frame_dec: FrameDecoder<R>,
     global_color_table: Option<GlobalColorTable>,
@@ -640,7 +681,7 @@ impl<R: Read> Iterator for RasterDecoder<R> {
 
 impl<R: Read> RasterDecoder<R> {
     /// Create a new raster decoder
-    pub fn new(frame_dec: FrameDecoder<R>) -> Self {
+    fn new(frame_dec: FrameDecoder<R>) -> Self {
         RasterDecoder {
             frame_dec,
             global_color_table: None,
@@ -653,7 +694,7 @@ impl<R: Read> RasterDecoder<R> {
             self.global_color_table = p.global_color_table.take();
             let w = p.screen_width().into();
             let h = p.screen_height().into();
-            self.raster = Some(Raster::<Rgba8>::new(w, h));
+            self.raster = Some(RasterBuilder::<Rgba8>::new().with_clear(w, h));
             Ok(())
         } else {
             warn!("Preamble not found!");
@@ -672,21 +713,23 @@ impl<R: Read> RasterDecoder<R> {
     /// Apply a frame to the raster
     fn apply_frame(&mut self, f: Frame) -> Result<Raster<Rgba8>, DecodeError> {
         let r = if let DisposalMethod::Previous = f.disposal_method() {
-            let mut r = self.raster.as_ref().unwrap().clone();
+            let r = self.raster.as_ref().unwrap();
+            let mut r = RasterBuilder::new().with_raster(r);
             update_raster(&mut r, &f, &self.global_color_table)?;
             r
         } else {
             let mut r = self.raster.as_mut().unwrap();
             update_raster(&mut r, &f, &self.global_color_table)?;
-            r.clone()
+            RasterBuilder::new().with_raster(r)
         };
         if let DisposalMethod::Background = f.disposal_method() {
             let x = f.left().into();
             let y = f.top().into();
             let w = f.width().into();
             let h = f.height().into();
+            let reg = Region::new(x, y, w, h);
             let rs = self.raster.as_mut().unwrap();
-            rs.set_rect(x, y, w, h, Rgba8::default());
+            rs.set_region(reg, Rgba8::default());
         }
         Ok(r)
     }
@@ -719,7 +762,7 @@ fn update_raster(r: &mut Raster<Rgba8>, f: &Frame, t: &Option<GlobalColorTable>)
                 }
                 let p = match trans {
                     Some(t) if t == idx => Rgba8::default(),
-                    _ => Rgba8::new(clrs[i], clrs[i+1], clrs[i+2], 0xFF),
+                    _ => Rgba8::new(clrs[i], clrs[i+1], clrs[i+2]),
                 };
                 r.set_pixel(xi, yi, p);
             }
@@ -745,31 +788,88 @@ mod test {
         0xEC, 0x95, 0xFA, 0xA8, 0xDE, 0x60, 0x8C, 0x04,
         0x91, 0x4C, 0x01, 0x00, 0x3B,
     ];
+    const IMAGE_1: &[u8] = &[
+        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+        1, 1, 1, 0, 0, 0, 0, 2, 2, 2,
+        1, 1, 1, 0, 0, 0, 0, 2, 2, 2,
+        2, 2, 2, 0, 0, 0, 0, 1, 1, 1,
+        2, 2, 2, 0, 0, 0, 0, 1, 1, 1,
+        2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
+        2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
+        2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
+    ];
+    #[test]
+    fn block_1() -> Result<(), Box<Error>> {
+        use crate::block::*;
+        let colors = &[
+            0xFF, 0xFF, 0xFF,
+            0xFF, 0x00, 0x00,
+            0x00, 0x00, 0xFF,
+            0x00, 0x00, 0x00,
+        ][..];
+        let mut dec = Decoder::new(GIF_1).into_block_decoder();
+        match dec.next() {
+            Some(Ok(Block::Header(b))) => assert_eq!(b, Header::default()),
+            _ => panic!(),
+        }
+        match dec.next() {
+            Some(Ok(Block::LogicalScreenDesc(b))) => {
+                assert_eq!(b, LogicalScreenDesc::default()
+                    .with_screen_width(10)
+                    .with_screen_height(10)
+                    .with_flags(0x91))
+            },
+            _ => panic!(),
+        }
+        match dec.next() {
+            Some(Ok(Block::GlobalColorTable(b))) => {
+                assert_eq!(b, GlobalColorTable::with_colors(colors))
+            },
+            _ => panic!(),
+        }
+        match dec.next() {
+            Some(Ok(Block::GraphicControl(b))) => {
+                assert_eq!(b, GraphicControl::default())
+            },
+            _ => panic!(),
+        }
+        match dec.next() {
+            Some(Ok(Block::ImageDesc(b))) => {
+                assert_eq!(b, ImageDesc::default()
+                    .with_width(10)
+                    .with_height(10))
+            },
+            _ => panic!(),
+        }
+        match dec.next() {
+            Some(Ok(Block::ImageData(b))) => {
+                let mut d = ImageData::new(100, 2);
+                d.add_data(IMAGE_1);
+                assert_eq!(b, d);
+            },
+            _ => panic!(),
+        }
+        match dec.next() {
+            Some(Ok(Block::Trailer(b))) => assert_eq!(b, Trailer::default()),
+            _ => panic!(),
+        }
+        Ok(())
+    }
     #[test]
     fn frame_1() -> Result<(), Box<Error>> {
-        let image = &[
-            1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
-            1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
-            1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
-            1, 1, 1, 0, 0, 0, 0, 2, 2, 2,
-            1, 1, 1, 0, 0, 0, 0, 2, 2, 2,
-            2, 2, 2, 0, 0, 0, 0, 1, 1, 1,
-            2, 2, 2, 0, 0, 0, 0, 1, 1, 1,
-            2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
-            2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
-            2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
-        ][..];
         for f in Decoder::new(GIF_1).into_frame_decoder() {
-            assert_eq!(f?.image_data.data(), image);
+            assert_eq!(f?.image_data.data(), IMAGE_1);
         }
         Ok(())
     }
     #[test]
     fn image_1() -> Result<(), Box<Error>> {
         use pix::Rgba8;
-        let red = Rgba8::new(0xFF, 0x00, 0x00, 0xFF);
-        let blu = Rgba8::new(0x00, 0x00, 0xFF, 0xFF);
-        let wht = Rgba8::new(0xFF, 0xFF, 0xFF, 0xFF);
+        let red = Rgba8::new(0xFF, 0x00, 0x00);
+        let blu = Rgba8::new(0x00, 0x00, 0xFF);
+        let wht = Rgba8::new(0xFF, 0xFF, 0xFF);
         let image = &[
             red,red,red,red,red,blu,blu,blu,blu,blu,
             red,red,red,red,red,blu,blu,blu,blu,blu,
@@ -782,7 +882,7 @@ mod test {
             blu,blu,blu,blu,blu,red,red,red,red,red,
             blu,blu,blu,blu,blu,red,red,red,red,red,
         ][..];
-        for r in Decoder::new(GIF_1).into_raster_decoder() {
+        for r in Decoder::new(GIF_1) {
             assert_eq!(r?.as_slice(), image);
         }
         Ok(())
