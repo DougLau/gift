@@ -4,7 +4,7 @@
 //
 //! # GIF*t*
 //!
-//! A decoder and encoder for GIF images.
+//! A library for encoding and decoding GIF images and animations.
 //!
 #![doc(html_logo_url = "https://raw.githubusercontent.com/DougLau/gift/master/res/gift_logo.gif")]
 #![forbid(unsafe_code)]
