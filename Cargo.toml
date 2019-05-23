@@ -1,6 +1,6 @@
 [package]
 name = "gift"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Doug Lau <doug.p.lau@gmail.com>"]
 description = "A library for reading and writing GIF images"
 license = "MIT OR Apache-2.0"
@@ -19,6 +19,9 @@ pix = "0.6"
 
 # NOTE: for cmd only -- lib has no optional features
 termcolor = { version = "1.0.4", optional = true }
+
+[dev-dependencies]
+env_logger = "0.6.1"
 
 [features]
 cmd = ["termcolor"]

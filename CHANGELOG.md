@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+### Changed
+* Updated pix dep to 0.6
 ### Removed
 * FrameDecoder::new and RasterDecoder::new no longer public.
 
