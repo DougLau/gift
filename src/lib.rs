@@ -18,5 +18,5 @@ mod encode;
 mod error;
 
 pub use crate::decode::{Decoder, BlockDecoder, FrameDecoder, RasterDecoder};
-pub use crate::encode::Encoder;
-pub use crate::error::DecodeError;
+pub use crate::encode::{Encoder, FrameEncoder};
+pub use crate::error::{DecodeError, EncodeError};

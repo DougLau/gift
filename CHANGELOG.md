@@ -2,6 +2,7 @@
 
 ### Added
 * ImageData::set_min_code_size method
+* FrameEncoder (and Encoder.into_frame_encoder)
 ### Changed
 * Updated pix dep to 0.6
 * Automatically calculate LZW min code size for ImageData blocks.

@@ -2,13 +2,21 @@
 //
 // Copyright (c) 2019  Douglas Lau
 //
-
-use std::io::{self, BufWriter, Write};
+use crate::EncodeError;
 use crate::block::*;
+use std::io::{self, BufWriter, Write};
 
 /// Encoder for GIF files.
 pub struct Encoder<W: Write> {
+    // FIXME: this should be a builder for BlockEncoder / FrameEncoder
     writer: BufWriter<W>,
+}
+
+/// Encoder for writing [Frame](block/struct.Frame.html)s into a GIF file.
+pub struct FrameEncoder<W: Write> {
+    encoder: Encoder<W>,
+    has_preamble: bool,
+    has_trailer: bool,
 }
 
 impl<W: Write> Encoder<W> {
@@ -19,7 +27,7 @@ impl<W: Write> Encoder<W> {
         }
     }
     /// Encode one [Block](block/enum.Block.html).
-    pub fn encode(&mut self, block: &Block) -> io::Result<()> {
+    pub fn encode(&mut self, block: &Block) -> Result<(), EncodeError> {
         use crate::block::Block::*;
         let mut w = &mut self.writer;
         match block {
@@ -35,7 +43,12 @@ impl<W: Write> Encoder<W> {
             LocalColorTable(b) => b.format(&mut w),
             ImageData(b) => b.format(&mut w),
             Trailer(b) => b.format(&mut w),
-        }
+        }?;
+        Ok(())
+    }
+    /// Convert into a frame encoder.
+    pub fn into_frame_encoder(self) -> FrameEncoder<W> {
+        FrameEncoder::new(self)
     }
 }
 
@@ -248,5 +261,68 @@ impl Trailer {
     /// Format a trailer block
     fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
         w.write_all(BlockCode::Trailer_.signature())
+    }
+}
+
+impl<W: Write> FrameEncoder<W> {
+    /// Create a new GIF frame encoder.
+    fn new(encoder: Encoder<W>) -> Self {
+        let has_preamble = false;
+        let has_trailer = false;
+        FrameEncoder { encoder, has_preamble, has_trailer }
+    }
+    /// Encode the GIF preamble blocks.
+    ///
+    /// Must be called only once, before
+    /// [encode_frame](struct.FrameEncoder.html#method.encode_frame).
+    pub fn encode_preamble(&mut self, preamble: &Preamble)
+        -> Result<(), EncodeError>
+    {
+        if self.has_preamble {
+            return Err(EncodeError::InvalidBlockSequence);
+        }
+        self.encoder.encode(&preamble.header.clone().into())?;
+        self.encoder.encode(&preamble.logical_screen_desc.clone().into())?;
+        if let Some(tbl) = &preamble.global_color_table {
+            self.encoder.encode(&tbl.clone().into())?;
+        }
+        if let Some(cnt) = &preamble.loop_count_ext {
+            self.encoder.encode(&cnt.clone().into())?;
+        }
+        for comment in &preamble.comments {
+            self.encoder.encode(&comment.clone().into())?;
+        }
+        self.has_preamble = true;
+        Ok(())
+    }
+    /// Encode one frame of a GIF file.
+    ///
+    /// Must be called after
+    /// [encode_preamble](struct.FrameEncoder.html#method.encode_preamble).
+    pub fn encode_frame(&mut self, frame: &Frame) -> Result<(), EncodeError> {
+        if self.has_trailer || !self.has_preamble {
+            return Err(EncodeError::InvalidBlockSequence);
+        }
+        if let Some(ctrl) = &frame.graphic_control_ext {
+            self.encoder.encode(&ctrl.clone().into())?;
+        }
+        self.encoder.encode(&frame.image_desc.clone().into())?;
+        if let Some(tbl) = &frame.local_color_table {
+            self.encoder.encode(&tbl.clone().into())?;
+        }
+        self.encoder.encode(&frame.image_data.clone().into())?;
+        Ok(())
+    }
+    /// Encode the trailer of a GIF file.
+    ///
+    /// Must be called last, after all `Frames` have been encoded with
+    /// [encode_frame](struct.FrameEncoder.html#method.encode_frame).
+    pub fn encode_trailer(&mut self) -> Result<(), EncodeError> {
+        if self.has_trailer || !self.has_preamble {
+            return Err(EncodeError::InvalidBlockSequence);
+        }
+        self.encoder.encode(&Trailer::default().into())?;
+        self.has_trailer = true;
+        Ok(())
     }
 }
