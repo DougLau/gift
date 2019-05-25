@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.3.0] - 2019-05-24
 ### Added
 * ImageData::set_min_code_size method
 * FrameEncoder (and Encoder.into_frame_encoder)
