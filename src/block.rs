@@ -758,11 +758,10 @@ pub struct ImageData {
 
 impl ImageData {
     /// Create a new image data block
-    pub fn new(image_sz: usize, min_code_size: u8) -> Self {
+    pub fn new(image_sz: usize) -> Self {
         // Reserve an extra byte for min_code_size (first)
         let mut data = Vec::with_capacity(image_sz + 1);
-        // minimum code size must be between 2 and 12
-        data.push(2.max(min_code_size).min(12));
+        data.push(2);   // LZW minimum code size
         ImageData { data }
     }
     /// Check if the image data is complete
@@ -779,6 +778,15 @@ impl ImageData {
             self.data.extend_from_slice(&data[..rem]);
             warn!("Extra image data: {:?}", &data[rem..]);
         }
+        if let Some(max_index) = self.data.iter().max() {
+            let m = high_bit(max_index.next_power_of_two().into());
+            self.set_min_code_size(m);
+        }
+    }
+    /// Set the minimum code size
+    pub fn set_min_code_size(&mut self, min_code_size: u8) {
+        // minimum code size must be between 2 and 12
+        self.data[0] = 2.max(min_code_size).min(12);
     }
     /// Get the minimum code size
     pub fn min_code_size(&self) -> u8 {
@@ -790,6 +798,16 @@ impl ImageData {
         // Skip the LZW minimum code size
         &self.data[1..]
     }
+}
+
+/// Get the high bit of a value
+fn high_bit(value: u16) -> u8 {
+    for bit in 0..16 {
+        if (value >> bit) == 1 {
+            return bit;
+        }
+    }
+    0
 }
 
 /// The trailer block indicates the end of a GIF file.
@@ -1039,5 +1057,17 @@ mod test {
         assert_eq!(b.loop_count(), Some(0));
         let b = Application::with_loop_count(4);
         assert_eq!(b.loop_count(), Some(4));
+    }
+
+    #[test]
+    fn high_bits() {
+        assert_eq!(high_bit(2_u16.next_power_of_two()), 1);
+        assert_eq!(high_bit(3_u16.next_power_of_two()), 2);
+        assert_eq!(high_bit(4_u16.next_power_of_two()), 2);
+        assert_eq!(high_bit(5_u16.next_power_of_two()), 3);
+        assert_eq!(high_bit(7_u16.next_power_of_two()), 3);
+        assert_eq!(high_bit(8_u16.next_power_of_two()), 3);
+        assert_eq!(high_bit(9_u16.next_power_of_two()), 4);
+        assert_eq!(high_bit(16_u16.next_power_of_two()), 4);
     }
 }

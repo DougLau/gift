@@ -1,7 +1,10 @@
 ## [Unreleased]
 
+### Added
+* ImageData::set_min_code_size method
 ### Changed
 * Updated pix dep to 0.6
+* Automatically calculate LZW min code size for ImageData blocks.
 ### Removed
 * FrameDecoder::new and RasterDecoder::new no longer public.
 

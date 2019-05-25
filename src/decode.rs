@@ -12,7 +12,7 @@ use crate::block::*;
 /// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
 
-/// A builder for GIF decoders.
+/// Builder for GIF decoders.
 ///
 /// * [BlockDecoder](struct.BlockDecoder.html) — low-level,
 ///   [Block](block/enum.Block.html)s
@@ -61,7 +61,7 @@ impl<R: Read> IntoIterator for Decoder<R> {
     }
 }
 
-/// A decoder for iterating [Block](block/enum.Block.html)s within a GIF file.
+/// Decoder for iterating [Block](block/enum.Block.html)s within a GIF file.
 ///
 /// Build with
 /// Decoder.[into_block_iter](struct.Decoder.html#method.into_block_iter).
@@ -405,7 +405,8 @@ impl ImageData {
     fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
         let min_code_size = buf[0];
-        let selfy = Self::new(image_sz, min_code_size);
+        let mut selfy = Self::new(image_sz);
+        selfy.set_min_code_size(min_code_size);
         // check if min_code_size was valid
         if selfy.min_code_size() == min_code_size {
             Ok(selfy)
@@ -487,7 +488,7 @@ impl ImageData {
     }
 }
 
-/// A decoder for iterating [Frame](block/struct.Frame.html)s within a GIF file.
+/// Decoder for iterating [Frame](block/struct.Frame.html)s within a GIF file.
 ///
 /// Build with
 /// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
@@ -633,7 +634,7 @@ impl<R: Read> FrameDecoder<R> {
     }
 }
 
-/// A decoder for iterating Rasters within a GIF file.
+/// Decoder for iterating `Raster`s within a GIF file.
 ///
 /// Build with
 /// Decoder.[into_raster_decoder](struct.Decoder.html#method.into_raster_decoder).
@@ -845,7 +846,7 @@ mod test {
         }
         match dec.next() {
             Some(Ok(Block::ImageData(b))) => {
-                let mut d = ImageData::new(100, 2);
+                let mut d = ImageData::new(100);
                 d.add_data(IMAGE_1);
                 assert_eq!(b, d);
             },

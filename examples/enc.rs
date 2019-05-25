@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<Error>> {
         ColorTableOrdering::NotSorted, 2);
     let l_tbl = ColorTableConfig::default();
     let colors = [0, 0, 0, 255, 255, 255];
-    let mut image = ImageData::new(16, 2);
+    let mut image = ImageData::new(16);
     image.add_data(&[
         1, 0, 0, 1,
         0, 1, 1, 0,
