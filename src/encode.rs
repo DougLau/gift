@@ -9,6 +9,9 @@ use std::io::{self, BufWriter, Write};
 /// Encoder for GIF files.
 pub struct Encoder<W: Write> {
     // FIXME: this should be a builder for BlockEncoder / FrameEncoder
+    //        Also add builder option for global vs. local color tables.
+    //        Also builder option for color table creation mode.  Use Lab or Lch
+    //        with octree clustering and dithering.  Check out exoquant.
     writer: BufWriter<W>,
 }
 
@@ -295,7 +298,7 @@ impl<W: Write> FrameEncoder<W> {
         self.has_preamble = true;
         Ok(())
     }
-    /// Encode one frame of a GIF file.
+    /// Encode one `Frame` of a GIF file.
     ///
     /// Must be called after
     /// [encode_preamble](struct.FrameEncoder.html#method.encode_preamble).
@@ -313,9 +316,9 @@ impl<W: Write> FrameEncoder<W> {
         self.encoder.encode(&frame.image_data.clone().into())?;
         Ok(())
     }
-    /// Encode the trailer of a GIF file.
+    /// Encode the [Trailer](block/struct.Trailer.html) of a GIF file.
     ///
-    /// Must be called last, after all `Frames` have been encoded with
+    /// Must be called last, after all `Frame`s have been encoded with
     /// [encode_frame](struct.FrameEncoder.html#method.encode_frame).
     pub fn encode_trailer(&mut self) -> Result<(), EncodeError> {
         if self.has_trailer || !self.has_preamble {
