@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+* Fixed u8 overflow in ImageData.add_data method.
+
 ## [0.3.0] - 2019-05-24
 ### Added
 * ImageData::set_min_code_size method

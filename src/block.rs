@@ -779,7 +779,7 @@ impl ImageData {
             warn!("Extra image data: {:?}", &data[rem..]);
         }
         if let Some(max_index) = self.data.iter().max() {
-            let m = high_bit(max_index.next_power_of_two().into());
+            let m = high_bit(u16::from(*max_index).next_power_of_two());
             self.set_min_code_size(m);
         }
     }
