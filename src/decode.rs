@@ -3,11 +3,11 @@
 // Copyright (c) 2019  Douglas Lau
 //
 
-use std::io::{ErrorKind, BufReader, Read};
+use crate::block::*;
+use crate::error::DecodeError;
 use lzw;
 use pix::{Raster, RasterBuilder, Region, Rgba8};
-use crate::error::DecodeError;
-use crate::block::*;
+use std::io::{BufReader, ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
@@ -134,17 +134,18 @@ impl<R: Read> BlockDecoder<R> {
     fn examine_buffer(&mut self) -> Result<(BlockCode, usize), DecodeError> {
         let buf = &self.buffer[..];
         let t = if buf.len() > 0 { buf[0] } else { 0 };
-        let bc_sz = self.expected_next.take().or_else(||
-            match BlockCode::from_u8(t) {
-                Some(b) => Some((b, b.size())),
-                None => None,
-            }
-        );
+        let bc_sz =
+            self.expected_next
+                .take()
+                .or_else(|| match BlockCode::from_u8(t) {
+                    Some(b) => Some((b, b.size())),
+                    None => None,
+                });
         match bc_sz {
             Some(b) => {
                 self.expected_next = self.expected(b.0);
                 Ok(b)
-            },
+            }
             None => Err(DecodeError::InvalidBlockCode),
         }
     }
@@ -156,7 +157,7 @@ impl<R: Read> BlockDecoder<R> {
             Header_ => {
                 let sz = LogicalScreenDesc_.size();
                 Some((LogicalScreenDesc_, sz))
-            },
+            }
             LogicalScreenDesc_ => {
                 let sz = LogicalScreenDesc_.size();
                 if buf.len() >= sz {
@@ -169,7 +170,7 @@ impl<R: Read> BlockDecoder<R> {
                     }
                 }
                 None
-            },
+            }
             ImageDesc_ => {
                 let sz = ImageDesc_.size();
                 if buf.len() >= sz {
@@ -184,7 +185,7 @@ impl<R: Read> BlockDecoder<R> {
                     }
                 }
                 None
-            },
+            }
             LocalColorTable_ => Some((ImageData_, ImageData_.size())),
             Trailer_ => Some((Header_, Header_.size())),
             _ => None,
@@ -196,7 +197,7 @@ impl<R: Read> BlockDecoder<R> {
         let (bc, sz) = self.examine_buffer()?;
         let mut block = self.decode_block(bc, sz)?;
         if block.has_sub_blocks() {
-            while self.decode_sub_block(&mut block)? { }
+            while self.decode_sub_block(&mut block)? {}
         }
         self.check_block_end(&block)?;
         Ok(block)
@@ -206,7 +207,7 @@ impl<R: Read> BlockDecoder<R> {
         if let Block::ImageData(b) = block {
             self.decoder = None;
             if !b.is_complete() {
-                return Err(DecodeError::IncompleteImageData)
+                return Err(DecodeError::IncompleteImageData);
             }
         }
         Ok(())
@@ -219,7 +220,7 @@ impl<R: Read> BlockDecoder<R> {
             match self.reader.read(&mut self.buffer[len..]) {
                 Ok(0) => break, // EOF
                 Ok(n) => len += n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {},
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(e.into()),
             }
         }
@@ -227,9 +228,11 @@ impl<R: Read> BlockDecoder<R> {
         Ok(())
     }
     /// Decode one block
-    fn decode_block(&mut self, bc: BlockCode, sz: usize)
-        -> Result<Block, DecodeError>
-    {
+    fn decode_block(
+        &mut self,
+        bc: BlockCode,
+        sz: usize,
+    ) -> Result<Block, DecodeError> {
         let len = self.buffer.len();
         if len >= sz {
             debug!("  block  : {:?} {:?}", bc, sz);
@@ -242,9 +245,11 @@ impl<R: Read> BlockDecoder<R> {
         }
     }
     /// Parse a block in the buffer
-    fn parse_block(&self, bc: BlockCode, sz: usize)
-        -> Result<Block, DecodeError>
-    {
+    fn parse_block(
+        &self,
+        bc: BlockCode,
+        sz: usize,
+    ) -> Result<Block, DecodeError> {
         use crate::block::BlockCode::*;
         let buf = &self.buffer[..sz];
         Ok(match bc {
@@ -268,19 +273,22 @@ impl<R: Read> BlockDecoder<R> {
                         return Err(DecodeError::TooLargeImage);
                     }
                 }
-            },
+            }
             Block::ImageData(b) => {
-                self.decoder = Some(lzw::Decoder::new(lzw::LsbReader::new(),
-                    b.min_code_size()));
-            },
-            _ => {},
+                self.decoder = Some(lzw::Decoder::new(
+                    lzw::LsbReader::new(),
+                    b.min_code_size(),
+                ));
+            }
+            _ => {}
         }
         Ok(())
     }
     /// Decode one sub-block
-    fn decode_sub_block(&mut self, block: &mut Block)
-        -> Result<bool, DecodeError>
-    {
+    fn decode_sub_block(
+        &mut self,
+        block: &mut Block,
+    ) -> Result<bool, DecodeError> {
         self.fill_buffer()?;
         let len = self.buffer.len();
         if len > 0 {
@@ -298,9 +306,11 @@ impl<R: Read> BlockDecoder<R> {
         Err(DecodeError::UnexpectedEndOfFile)
     }
     /// Parse a sub-block in the buffer
-    fn parse_sub_block(&mut self, block: &mut Block, sz: usize)
-        -> Result<(), DecodeError>
-    {
+    fn parse_sub_block(
+        &mut self,
+        block: &mut Block,
+        sz: usize,
+    ) -> Result<(), DecodeError> {
         assert!(sz <= 256);
         use crate::block::Block::*;
         match block {
@@ -315,9 +325,11 @@ impl<R: Read> BlockDecoder<R> {
         Ok(())
     }
     /// Decode image data
-    fn decode_image_data(&mut self, b: &mut ImageData, sz: usize)
-        -> Result<(), DecodeError>
-    {
+    fn decode_image_data(
+        &mut self,
+        b: &mut ImageData,
+        sz: usize,
+    ) -> Result<(), DecodeError> {
         if let Some(ref mut dec) = &mut self.decoder {
             let mut s = 1;
             while s < sz {
@@ -339,9 +351,7 @@ impl Header {
         if &buf[..3] == b"GIF" {
             let version = [buf[3], buf[4], buf[5]];
             match &version {
-                b"87a" | b"89a" => {
-                    Ok(Header::with_version(version))
-                },
+                b"87a" | b"89a" => Ok(Header::with_version(version)),
                 _ => Err(DecodeError::UnsupportedVersion(version)),
             }
         } else {
@@ -354,7 +364,7 @@ impl LogicalScreenDesc {
     /// Decode a Logical Screen Descriptor block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::LogicalScreenDesc_.size());
-        let width  = u16::from(buf[1]) << 8 | u16::from(buf[0]);
+        let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
         let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
         let flags = buf[4];
         let bg_color = buf[5];
@@ -379,9 +389,9 @@ impl ImageDesc {
     /// Decode an Image Descriptor block from a buffer
     fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
         assert_eq!(buf.len(), BlockCode::ImageDesc_.size());
-        let left   = u16::from(buf[2]) << 8 | u16::from(buf[1]);
-        let top    = u16::from(buf[4]) << 8 | u16::from(buf[3]);
-        let width  = u16::from(buf[6]) << 8 | u16::from(buf[5]);
+        let left = u16::from(buf[2]) << 8 | u16::from(buf[1]);
+        let top = u16::from(buf[4]) << 8 | u16::from(buf[3]);
+        let width = u16::from(buf[6]) << 8 | u16::from(buf[5]);
         let height = u16::from(buf[8]) << 8 | u16::from(buf[7]);
         let flags = buf[9];
         Ok(Self::default()
@@ -525,11 +535,11 @@ impl<R: Read> Iterator for FrameDecoder<R> {
             match block {
                 Ok(b) => {
                     match self.handle_block(b) {
-                        Ok(Some(f)) => return Some(Ok(f)),  // transpose
-                        Ok(None) => {}, // need more blocks
+                        Ok(Some(f)) => return Some(Ok(f)), // transpose
+                        Ok(None) => {}                     // need more blocks
                         Err(e) => return Some(Err(e)),
                     }
-                },
+                }
                 Err(e) => return Some(Err(e)),
             }
         }
@@ -565,14 +575,15 @@ impl<R: Read> FrameDecoder<R> {
     }
     /// Check if any frame blocks exist
     fn has_frame(&self) -> bool {
-        self.graphic_control_ext.is_some() ||
-        self.image_desc.is_some() ||
-        self.local_color_table.is_some()
+        self.graphic_control_ext.is_some()
+            || self.image_desc.is_some()
+            || self.local_color_table.is_some()
     }
     /// Handle one block
-    fn handle_block(&mut self, block: Block)
-        -> Result<Option<Frame>, DecodeError>
-    {
+    fn handle_block(
+        &mut self,
+        block: Block,
+    ) -> Result<Option<Frame>, DecodeError> {
         match block {
             Block::Header(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
@@ -583,52 +594,56 @@ impl<R: Read> FrameDecoder<R> {
                 if let Some(ref mut f) = &mut self.preamble {
                     f.logical_screen_desc = b;
                 }
-            },
+            }
             Block::GlobalColorTable(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
                     f.global_color_table = Some(b);
                 }
-            },
+            }
             Block::Application(b) => {
                 if let (Some(ref mut f), Some(_)) =
                     (&mut self.preamble, b.loop_count())
                 {
                     f.loop_count_ext = Some(b);
                 }
-            },
+            }
             Block::Comment(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
                     f.comments.push(b);
                 }
-            },
+            }
             Block::GraphicControl(b) => {
                 if self.has_frame() {
                     return Err(DecodeError::InvalidBlockSequence);
                 }
                 self.graphic_control_ext = Some(b);
-            },
+            }
             Block::ImageDesc(b) => {
                 if self.image_desc.is_some() {
                     return Err(DecodeError::InvalidBlockSequence);
                 }
                 self.image_desc = Some(b);
-            },
+            }
             Block::LocalColorTable(b) => {
                 self.local_color_table = Some(b);
-            },
+            }
             Block::ImageData(image_data) => {
                 let graphic_control_ext = self.graphic_control_ext.take();
                 let image_desc = self.image_desc.take();
                 let local_color_table = self.local_color_table.take();
                 if let Some(image_desc) = image_desc {
-                    let f = Frame::new(graphic_control_ext, image_desc,
-                        local_color_table, image_data);
+                    let f = Frame::new(
+                        graphic_control_ext,
+                        image_desc,
+                        local_color_table,
+                        image_data,
+                    );
                     return Ok(Some(f));
                 } else {
                     return Err(DecodeError::InvalidBlockSequence);
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         Ok(None)
     }
@@ -737,9 +752,11 @@ impl<R: Read> RasterDecoder<R> {
 }
 
 /// Update a raster with a new frame
-fn update_raster(r: &mut Raster<Rgba8>, f: &Frame, t: &Option<GlobalColorTable>)
-    -> Result<(), DecodeError>
-{
+fn update_raster(
+    r: &mut Raster<Rgba8>,
+    f: &Frame,
+    t: &Option<GlobalColorTable>,
+) -> Result<(), DecodeError> {
     let x: u32 = f.left().into();
     let y: u32 = f.top().into();
     let w: u32 = f.width().into();
@@ -753,9 +770,9 @@ fn update_raster(r: &mut Raster<Rgba8>, f: &Frame, t: &Option<GlobalColorTable>)
             return Err(DecodeError::MissingColorTable);
         };
         let trans = f.transparent_color();
-        for yi in y..y+h {
+        for yi in y..y + h {
             let yr = yi * r.width();
-            for xi in x..x+w {
+            for xi in x..x + w {
                 let idx = f.image_data.data()[(yr + xi) as usize];
                 let i = 3 * idx as usize;
                 if i + 2 > clrs.len() {
@@ -763,7 +780,7 @@ fn update_raster(r: &mut Raster<Rgba8>, f: &Frame, t: &Option<GlobalColorTable>)
                 }
                 let p = match trans {
                     Some(t) if t == idx => Rgba8::default(),
-                    _ => Rgba8::new(clrs[i], clrs[i+1], clrs[i+2]),
+                    _ => Rgba8::new(clrs[i], clrs[i + 1], clrs[i + 2]),
                 };
                 r.set_pixel(xi, yi, p);
             }
@@ -776,18 +793,15 @@ fn update_raster(r: &mut Raster<Rgba8>, f: &Frame, t: &Option<GlobalColorTable>)
 
 #[cfg(test)]
 mod test {
-    use std::error::Error;
     use super::Decoder;
+    use std::error::Error;
     const GIF_1: &[u8] = &[
-        0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00,
-        0x0A, 0x00, 0x91, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
-        0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00,
-        0x00, 0x21, 0xF9, 0x04, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00,
-        0x0A, 0x00, 0x00, 0x02, 0x16, 0x8C, 0x2D, 0x99,
-        0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75,
-        0xEC, 0x95, 0xFA, 0xA8, 0xDE, 0x60, 0x8C, 0x04,
-        0x91, 0x4C, 0x01, 0x00, 0x3B,
+        0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00, 0x0A, 0x00, 0x91, 0x00,
+        0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00,
+        0x00, 0x21, 0xF9, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x00, 0x00,
+        0x00, 0x00, 0x0A, 0x00, 0x0A, 0x00, 0x00, 0x02, 0x16, 0x8C, 0x2D, 0x99,
+        0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75, 0xEC, 0x95, 0xFA, 0xA8,
+        0xDE, 0x60, 0x8C, 0x04, 0x91, 0x4C, 0x01, 0x00, 0x3B,
     ];
     const IMAGE_1: &[u8] = &[
         1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
@@ -816,32 +830,32 @@ mod test {
             _ => panic!(),
         }
         match dec.next() {
-            Some(Ok(Block::LogicalScreenDesc(b))) => {
-                assert_eq!(b, LogicalScreenDesc::default()
+            Some(Ok(Block::LogicalScreenDesc(b))) => assert_eq!(
+                b,
+                LogicalScreenDesc::default()
                     .with_screen_width(10)
                     .with_screen_height(10)
-                    .with_flags(0x91))
-            },
+                    .with_flags(0x91)
+            ),
             _ => panic!(),
         }
         match dec.next() {
             Some(Ok(Block::GlobalColorTable(b))) => {
                 assert_eq!(b, GlobalColorTable::with_colors(colors))
-            },
+            }
             _ => panic!(),
         }
         match dec.next() {
             Some(Ok(Block::GraphicControl(b))) => {
                 assert_eq!(b, GraphicControl::default())
-            },
+            }
             _ => panic!(),
         }
         match dec.next() {
-            Some(Ok(Block::ImageDesc(b))) => {
-                assert_eq!(b, ImageDesc::default()
-                    .with_width(10)
-                    .with_height(10))
-            },
+            Some(Ok(Block::ImageDesc(b))) => assert_eq!(
+                b,
+                ImageDesc::default().with_width(10).with_height(10)
+            ),
             _ => panic!(),
         }
         match dec.next() {
@@ -849,7 +863,7 @@ mod test {
                 let mut d = ImageData::new(100);
                 d.add_data(IMAGE_1);
                 assert_eq!(b, d);
-            },
+            }
             _ => panic!(),
         }
         match dec.next() {
@@ -872,16 +886,16 @@ mod test {
         let blu = Rgba8::new(0x00, 0x00, 0xFF);
         let wht = Rgba8::new(0xFF, 0xFF, 0xFF);
         let image = &[
-            red,red,red,red,red,blu,blu,blu,blu,blu,
-            red,red,red,red,red,blu,blu,blu,blu,blu,
-            red,red,red,red,red,blu,blu,blu,blu,blu,
-            red,red,red,wht,wht,wht,wht,blu,blu,blu,
-            red,red,red,wht,wht,wht,wht,blu,blu,blu,
-            blu,blu,blu,wht,wht,wht,wht,red,red,red,
-            blu,blu,blu,wht,wht,wht,wht,red,red,red,
-            blu,blu,blu,blu,blu,red,red,red,red,red,
-            blu,blu,blu,blu,blu,red,red,red,red,red,
-            blu,blu,blu,blu,blu,red,red,red,red,red,
+            red, red, red, red, red, blu, blu, blu, blu, blu,
+            red, red, red, red, red, blu, blu, blu, blu, blu,
+            red, red, red, red, red, blu, blu, blu, blu, blu,
+            red, red, red, wht, wht, wht, wht, blu, blu, blu,
+            red, red, red, wht, wht, wht, wht, blu, blu, blu,
+            blu, blu, blu, wht, wht, wht, wht, red, red, red,
+            blu, blu, blu, wht, wht, wht, wht, red, red, red,
+            blu, blu, blu, blu, blu, red, red, red, red, red,
+            blu, blu, blu, blu, blu, red, red, red, red, red,
+            blu, blu, blu, blu, blu, red, red, red, red, red,
         ][..];
         for r in Decoder::new(GIF_1) {
             assert_eq!(r?.as_slice(), image);

@@ -2,8 +2,8 @@
 //
 // Copyright (c) 2019  Douglas Lau
 //
-use crate::EncodeError;
 use crate::block::*;
+use crate::EncodeError;
 use std::io::{self, BufWriter, Write};
 
 /// Encoder for GIF files.
@@ -95,10 +95,10 @@ impl PlainText {
         for b in self.sub_blocks() {
             assert!(b.len() < 256);
             let len = b.len() as u8;
-            w.write_all(&[len])?;   // block size
+            w.write_all(&[len])?; // block size
             w.write_all(b)?;
         }
-        w.write_all(&[0])   // block size
+        w.write_all(&[0]) // block size
     }
 }
 
@@ -108,13 +108,13 @@ impl GraphicControl {
         w.write_all(BlockCode::Extension_.signature())?;
         let mut buf = Vec::with_capacity(7);
         buf.push(ExtensionCode::GraphicControl_.into());
-        buf.push(4);    // block size
+        buf.push(4); // block size
         buf.push(self.flags());
         let delay = self.delay_time_cs();
         buf.push((delay >> 0) as u8);
         buf.push((delay >> 8) as u8);
         buf.push(self.transparent_color_idx());
-        buf.push(0);    // block size
+        buf.push(0); // block size
         w.write_all(&buf)
     }
 }
@@ -127,10 +127,10 @@ impl Comment {
         for c in self.comments() {
             assert!(c.len() < 256);
             let len = c.len() as u8;
-            w.write_all(&[len])?;   // block size
+            w.write_all(&[len])?; // block size
             w.write_all(c)?;
         }
-        w.write_all(&[0])   // block size
+        w.write_all(&[0]) // block size
     }
 }
 
@@ -142,10 +142,10 @@ impl Application {
         for c in self.app_data() {
             assert!(c.len() < 256);
             let len = c.len() as u8;
-            w.write_all(&[len])?;   // block size
+            w.write_all(&[len])?; // block size
             w.write_all(c)?;
         }
-        w.write_all(&[0])   // block size
+        w.write_all(&[0]) // block size
     }
 }
 
@@ -157,10 +157,10 @@ impl Unknown {
         for c in self.sub_blocks() {
             assert!(c.len() < 256);
             let len = c.len() as u8;
-            w.write_all(&[len])?;   // block size
+            w.write_all(&[len])?; // block size
             w.write_all(c)?;
         }
-        w.write_all(&[0])   // block size
+        w.write_all(&[0]) // block size
     }
 }
 
@@ -201,19 +201,23 @@ impl ImageData {
         w.write_all(&[0])
     }
     /// Format the entire "block" (including sub-blocks)
-    fn format_block<W: Write>(&self, mut w: &mut BufWriter<W>)
-        -> io::Result<()>
-    {
+    fn format_block<W: Write>(
+        &self,
+        mut w: &mut BufWriter<W>,
+    ) -> io::Result<()> {
         let mut bw = BlockWriter::new(&mut w);
         self.format_data(&mut bw)?;
         bw.flush()
     }
     /// Format image data (with LZW encoding)
-    fn format_data<W: Write>(&self, mut bw: &mut BlockWriter<W>)
-        -> io::Result<()>
-    {
-        let mut enc = lzw::Encoder::new(lzw::LsbWriter::new(&mut bw),
-            self.min_code_size())?;
+    fn format_data<W: Write>(
+        &self,
+        mut bw: &mut BlockWriter<W>,
+    ) -> io::Result<()> {
+        let mut enc = lzw::Encoder::new(
+            lzw::LsbWriter::new(&mut bw),
+            self.min_code_size(),
+        )?;
         enc.encode_bytes(self.data())
     }
 }
@@ -272,20 +276,26 @@ impl<W: Write> FrameEncoder<W> {
     fn new(encoder: Encoder<W>) -> Self {
         let has_preamble = false;
         let has_trailer = false;
-        FrameEncoder { encoder, has_preamble, has_trailer }
+        FrameEncoder {
+            encoder,
+            has_preamble,
+            has_trailer,
+        }
     }
     /// Encode the GIF preamble blocks.
     ///
     /// Must be called only once, before
     /// [encode_frame](struct.FrameEncoder.html#method.encode_frame).
-    pub fn encode_preamble(&mut self, preamble: &Preamble)
-        -> Result<(), EncodeError>
-    {
+    pub fn encode_preamble(
+        &mut self,
+        preamble: &Preamble,
+    ) -> Result<(), EncodeError> {
         if self.has_preamble {
             return Err(EncodeError::InvalidBlockSequence);
         }
         self.encoder.encode(&preamble.header.clone().into())?;
-        self.encoder.encode(&preamble.logical_screen_desc.clone().into())?;
+        self.encoder
+            .encode(&preamble.logical_screen_desc.clone().into())?;
         if let Some(tbl) = &preamble.global_color_table {
             self.encoder.encode(&tbl.clone().into())?;
         }

@@ -4,8 +4,8 @@ use std::fs::File;
 
 fn main() -> Result<(), Box<Error>> {
     env_logger::Builder::from_default_env()
-                        .default_format_timestamp(false)
-                        .init();
+        .default_format_timestamp(false)
+        .init();
     if let Some(path) = env::args().nth(1) {
         decode(&path)?;
     } else {

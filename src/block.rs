@@ -45,7 +45,7 @@ pub enum ColorTableOrdering {
 pub struct ColorTableConfig {
     existence: ColorTableExistence,
     ordering: ColorTableOrdering,
-    table_len: usize,   // must be between 2...256
+    table_len: usize, // must be between 2...256
 }
 
 impl Default for ColorTableConfig {
@@ -53,17 +53,28 @@ impl Default for ColorTableConfig {
         let existence = ColorTableExistence::Absent;
         let ordering = ColorTableOrdering::NotSorted;
         let table_len = 2;
-        ColorTableConfig { existence, ordering, table_len }
+        ColorTableConfig {
+            existence,
+            ordering,
+            table_len,
+        }
     }
 }
 
 impl ColorTableConfig {
     /// Create a new color table configuration
-    pub fn new(existence: ColorTableExistence, ordering: ColorTableOrdering,
-        table_len: u16) -> Self
-    {
-        let table_len = (table_len as usize).max(2).next_power_of_two().min(256);
-        ColorTableConfig { existence, ordering, table_len }
+    pub fn new(
+        existence: ColorTableExistence,
+        ordering: ColorTableOrdering,
+        table_len: u16,
+    ) -> Self {
+        let table_len =
+            (table_len as usize).max(2).next_power_of_two().min(256);
+        ColorTableConfig {
+            existence,
+            ordering,
+            table_len,
+        }
     }
     /// Get the existence of a color table
     pub fn existence(&self) -> ColorTableExistence {
@@ -169,9 +180,9 @@ impl BlockCode {
     pub fn from_u8(t: u8) -> Option<Self> {
         use self::BlockCode::*;
         match t {
-            b',' => Some(ImageDesc_),   // (0x2C) Image separator
-            b'!' => Some(Extension_),   // (0x21) Extension introducer
-            b';' => Some(Trailer_),     // (0x3B) GIF trailer
+            b',' => Some(ImageDesc_), // (0x2C) Image separator
+            b'!' => Some(Extension_), // (0x21) Extension introducer
+            b';' => Some(Trailer_),   // (0x3B) GIF trailer
             _ => None,
         }
     }
@@ -274,15 +285,15 @@ pub struct LogicalScreenDesc {
     screen_width: u16,
     screen_height: u16,
     flags: u8,
-    background_color_idx: u8,   // index into global color table
+    background_color_idx: u8, // index into global color table
     pixel_aspect_ratio: u8,
 }
 
 impl LogicalScreenDesc {
-    const COLOR_TABLE_PRESENT: u8  = 0b1000_0000;
-    const COLOR_RESOLUTION: u8     = 0b0111_0000;
+    const COLOR_TABLE_PRESENT: u8 = 0b1000_0000;
+    const COLOR_RESOLUTION: u8 = 0b0111_0000;
     const COLOR_TABLE_ORDERING: u8 = 0b0000_1000;
-    const COLOR_TABLE_SIZE: u8     = 0b0000_0111;
+    const COLOR_TABLE_SIZE: u8 = 0b0000_0111;
 
     /// Set the screen width
     pub fn with_screen_width(mut self, screen_width: u16) -> Self {
@@ -340,7 +351,11 @@ impl LogicalScreenDesc {
         let existence = self.color_table_existence();
         let ordering = self.color_table_ordering();
         let table_len = self.color_table_len();
-        ColorTableConfig { existence, ordering, table_len }
+        ColorTableConfig {
+            existence,
+            ordering,
+            table_len,
+        }
     }
     /// Set the global color table configuration
     pub fn with_color_table_config(mut self, tbl: &ColorTableConfig) -> Self {
@@ -356,9 +371,10 @@ impl LogicalScreenDesc {
         self
     }
     /// Set the background color index
-    pub fn with_background_color_idx(mut self, background_color_idx: u8)
-        -> Self
-    {
+    pub fn with_background_color_idx(
+        mut self,
+        background_color_idx: u8,
+    ) -> Self {
         self.background_color_idx = background_color_idx;
         self
     }
@@ -367,9 +383,7 @@ impl LogicalScreenDesc {
         self.background_color_idx
     }
     /// Set the pixel aspect ratio (obsolete GIF feature)
-    pub fn with_pixel_aspect_ratio(mut self, pixel_aspect_ratio: u8)
-        -> Self
-    {
+    pub fn with_pixel_aspect_ratio(mut self, pixel_aspect_ratio: u8) -> Self {
         self.pixel_aspect_ratio = pixel_aspect_ratio;
         self
     }
@@ -406,7 +420,7 @@ impl GlobalColorTable {
 /// The plain text extension block is an obsolete GIF feature.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlainText {
-    sub_blocks: Vec<Vec<u8>>,   // sequence of sub-blocks
+    sub_blocks: Vec<Vec<u8>>, // sequence of sub-blocks
 }
 
 impl PlainText {
@@ -426,15 +440,15 @@ impl PlainText {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GraphicControl {
     flags: u8,
-    delay_time_cs: u16,      // delay in centiseconds (hundredths of a second)
+    delay_time_cs: u16, // delay in centiseconds (hundredths of a second)
     transparent_color_idx: u8,
 }
 
 impl GraphicControl {
     #[allow(dead_code)]
-    const RESERVED: u8          = 0b1110_0000;
-    const DISPOSAL_METHOD: u8   = 0b0001_1100;
-    const USER_INPUT: u8        = 0b0000_0010;
+    const RESERVED: u8 = 0b1110_0000;
+    const DISPOSAL_METHOD: u8 = 0b0001_1100;
+    const USER_INPUT: u8 = 0b0000_0010;
     const TRANSPARENT_COLOR: u8 = 0b0000_0001;
 
     /// Set the graphic control flags
@@ -494,11 +508,11 @@ impl GraphicControl {
             Some(t) => {
                 self.flags |= Self::TRANSPARENT_COLOR;
                 self.transparent_color_idx = t;
-            },
+            }
             None => {
                 self.flags |= !Self::TRANSPARENT_COLOR;
                 self.transparent_color_idx = 0;
-            },
+            }
         }
     }
 }
@@ -526,7 +540,7 @@ impl Comment {
 /// animation.  Other uses are ignored by most GIF readers.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Application {
-    app_data: Vec<Vec<u8>>,     // sequence of sub-blocks
+    app_data: Vec<Vec<u8>>, // sequence of sub-blocks
 }
 
 impl Application {
@@ -561,7 +575,7 @@ impl Application {
         let exists = d.len() == 2 &&            // 2 sub-blocks
                      Self::is_looping(&d[0]) && // app ID / auth code
                      d[1].len() == 3 &&         // app data sub-block length
-                     d[1][0] == 1;              // sub-block ID
+                     d[1][0] == 1; // sub-block ID
         if exists {
             // Number of times to loop animation (zero means loop forever)
             Some(u16::from(d[1][1]) << 8 | u16::from(d[1][2]))
@@ -575,7 +589,7 @@ impl Application {
 /// by non-standard encoders.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Unknown {
-    sub_blocks: Vec<Vec<u8>>,   // sequence of sub-blocks (first has ext_id)
+    sub_blocks: Vec<Vec<u8>>, // sequence of sub-blocks (first has ext_id)
 }
 
 impl Unknown {
@@ -613,12 +627,12 @@ pub struct ImageDesc {
 }
 
 impl ImageDesc {
-    const COLOR_TABLE_PRESENT: u8  = 0b1000_0000;
-    const INTERLACED: u8           = 0b0100_0000;
+    const COLOR_TABLE_PRESENT: u8 = 0b1000_0000;
+    const INTERLACED: u8 = 0b0100_0000;
     const COLOR_TABLE_ORDERING: u8 = 0b0010_0000;
     #[allow(dead_code)]
-    const RESERVED: u8             = 0b0001_1000;
-    const COLOR_TABLE_SIZE: u8     = 0b0000_0111;
+    const RESERVED: u8 = 0b0001_1000;
+    const COLOR_TABLE_SIZE: u8 = 0b0000_0111;
 
     /// Set the left position
     pub fn with_left(mut self, left: u16) -> Self {
@@ -705,7 +719,11 @@ impl ImageDesc {
         let existence = self.color_table_existence();
         let ordering = self.color_table_ordering();
         let table_len = self.color_table_len();
-        ColorTableConfig { existence, ordering, table_len }
+        ColorTableConfig {
+            existence,
+            ordering,
+            table_len,
+        }
     }
     /// Set the local color table configuration
     pub fn with_color_table_config(mut self, tbl: &ColorTableConfig) -> Self {
@@ -753,7 +771,7 @@ impl LocalColorTable {
 /// An image data block contains image data for one frame.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageData {
-    data: Vec<u8>,  // first byte of data is LZW minimum code size
+    data: Vec<u8>, // first byte of data is LZW minimum code size
 }
 
 impl ImageData {
@@ -761,7 +779,7 @@ impl ImageData {
     pub fn new(image_sz: usize) -> Self {
         // Reserve an extra byte for min_code_size (first)
         let mut data = Vec::with_capacity(image_sz + 1);
-        data.push(2);   // LZW minimum code size
+        data.push(2); // LZW minimum code size
         ImageData { data }
     }
     /// Check if the image data is complete
@@ -812,7 +830,7 @@ fn high_bit(value: u16) -> u8 {
 
 /// The trailer block indicates the end of a GIF file.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Trailer { }
+pub struct Trailer {}
 
 /// A block within a GIF file.
 #[derive(Debug)]
@@ -848,8 +866,8 @@ impl Block {
     pub fn has_sub_blocks(&self) -> bool {
         use self::Block::*;
         match self {
-            PlainText(_) | GraphicControl(_) | Comment(_) | Application(_) |
-            Unknown(_) | ImageData(_) => true,
+            PlainText(_) | GraphicControl(_) | Comment(_) | Application(_)
+            | Unknown(_) | ImageData(_) => true,
             _ => false,
         }
     }
@@ -972,11 +990,18 @@ pub struct Frame {
 
 impl Frame {
     /// Create a new frame
-    pub fn new(graphic_control_ext: Option<GraphicControl>,
-        image_desc: ImageDesc, local_color_table: Option<LocalColorTable>,
-        image_data: ImageData) -> Self
-    {
-        Frame { graphic_control_ext, image_desc, local_color_table, image_data }
+    pub fn new(
+        graphic_control_ext: Option<GraphicControl>,
+        image_desc: ImageDesc,
+        local_color_table: Option<LocalColorTable>,
+        image_data: ImageData,
+    ) -> Self {
+        Frame {
+            graphic_control_ext,
+            image_desc,
+            local_color_table,
+            image_data,
+        }
     }
     /// Get the frame disposal method
     pub fn disposal_method(&self) -> DisposalMethod {
@@ -1021,29 +1046,53 @@ mod test {
 
     #[test]
     fn color_table_len() {
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 0); // 0-2
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            0,
+        ); // 0-2
         assert_eq!(t.len_bits(), 0);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 4); // 3-4
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            4,
+        ); // 3-4
         assert_eq!(t.len_bits(), 1);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 7); // 5-8
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            7,
+        ); // 5-8
         assert_eq!(t.len_bits(), 2);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 16); // 9-16
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            16,
+        ); // 9-16
         assert_eq!(t.len_bits(), 3);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 17); // 17-32
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            17,
+        ); // 17-32
         assert_eq!(t.len_bits(), 4);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 64); // 33-64
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            64,
+        ); // 33-64
         assert_eq!(t.len_bits(), 5);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 65); // 65-128
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            65,
+        ); // 65-128
         assert_eq!(t.len_bits(), 6);
-        let t = ColorTableConfig::new(ColorTableExistence::Present,
-            ColorTableOrdering::NotSorted, 130); // 129-256
+        let t = ColorTableConfig::new(
+            ColorTableExistence::Present,
+            ColorTableOrdering::NotSorted,
+            130,
+        ); // 129-256
         assert_eq!(t.len_bits(), 7);
         let t = ColorTableConfig::default();
         assert_eq!(t.len_bits(), 0);

@@ -4,12 +4,12 @@
 //
 #![forbid(unsafe_code)]
 
+use gift::block::{DisposalMethod, Frame};
+use gift::Decoder;
 use std::env;
 use std::error::Error;
-use std::io::Write;
 use std::fs::File;
-use gift::Decoder;
-use gift::block::{DisposalMethod, Frame};
+use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 fn main() -> Result<(), Box<Error>> {
@@ -42,7 +42,9 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
     let mut cyan = ColorSpec::new();
     cyan.set_fg(Some(Color::Cyan)).set_intense(true);
     let mut bold = ColorSpec::new();
-    bold.set_fg(Some(Color::White)).set_intense(true).set_bold(true);
+    bold.set_fg(Some(Color::White))
+        .set_intense(true)
+        .set_bold(true);
     let f = File::open(&path)?;
     let mut frame_dec = Decoder::new(f).into_frame_decoder();
     let preamble = if let Some(p) = frame_dec.preamble()? {
@@ -95,33 +97,57 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
         writeln!(out)?;
     }
     out.set_color(&yellow)?;
-    write!(out, " {:>w$}", "Fr#", w=frame_digits)?;
+    write!(out, " {:>w$}", "Fr#", w = frame_digits)?;
     write!(out, "  Delay Disp")?;
-    write!(out, " {:>w$}", "Size", w=size_digits)?;
-    write!(out, " {:>w$}", "X,Y", w=size_digits)?;
+    write!(out, " {:>w$}", "Size", w = size_digits)?;
+    write!(out, " {:>w$}", "X,Y", w = size_digits)?;
     writeln!(out, " Clrs Trn")?;
     let global_clr = preamble.logical_screen_desc.color_table_config().len();
     for (n, f) in frames.into_iter().enumerate() {
-        write_frame(&f, out, width, height, global_clr, n, frame_digits,
-            size_digits)?;
+        write_frame(
+            &f,
+            out,
+            width,
+            height,
+            global_clr,
+            n,
+            frame_digits,
+            size_digits,
+        )?;
     }
     Ok(())
 }
 
-fn write_frame(frame: &Frame, out: &mut StandardStream, width: u16,
-    height: u16, global_clr: usize, number: usize, frame_digits: usize,
-    size_digits: usize) -> Result<(), Box<Error>>
-{
+fn write_frame(
+    frame: &Frame,
+    out: &mut StandardStream,
+    width: u16,
+    height: u16,
+    global_clr: usize,
+    number: usize,
+    frame_digits: usize,
+    size_digits: usize,
+) -> Result<(), Box<Error>> {
     let mut dflt = ColorSpec::new();
     dflt.set_fg(Some(Color::White));
     let mut bold = ColorSpec::new();
-    bold.set_fg(Some(Color::White)).set_intense(true).set_bold(true);
+    bold.set_fg(Some(Color::White))
+        .set_intense(true)
+        .set_bold(true);
     let mut red = ColorSpec::new();
     red.set_fg(Some(Color::Red)).set_intense(true);
     out.set_color(&dflt)?;
-    write!(out, "{}", if frame.image_desc.interlaced() { 'i' } else { ' ' })?;
+    write!(
+        out,
+        "{}",
+        if frame.image_desc.interlaced() {
+            'i'
+        } else {
+            ' '
+        }
+    )?;
     out.set_color(&bold)?;
-    write!(out, "{:>w$}", number, w=frame_digits)?;
+    write!(out, "{:>w$}", number, w = frame_digits)?;
     let d = if let Some(gc) = &frame.graphic_control_ext {
         gc.delay_time_cs()
     } else {
@@ -143,25 +169,34 @@ fn write_frame(frame: &Frame, out: &mut StandardStream, width: u16,
         "-"
     };
     out.set_color(match d {
-        "none"|"-" => &dflt,
+        "none" | "-" => &dflt,
         "res" => &red,
         _ => &bold,
     })?;
     write!(out, " {:>4}", d)?;
-    if width == frame.image_desc.width() && height == frame.image_desc.height(){
+    if width == frame.image_desc.width() && height == frame.image_desc.height()
+    {
         out.set_color(&dflt)?;
     } else {
         out.set_color(&bold)?;
     }
-    write!(out, " {:>w$}", &format!("{}x{}", frame.image_desc.width(),
-        frame.image_desc.height()), w=size_digits)?;
+    write!(
+        out,
+        " {:>w$}",
+        &format!("{}x{}", frame.image_desc.width(), frame.image_desc.height()),
+        w = size_digits
+    )?;
     if frame.image_desc.left() == 0 && frame.image_desc.top() == 0 {
         out.set_color(&dflt)?;
     } else {
         out.set_color(&bold)?;
     }
-    write!(out, " {:>w$}", &format!("{},{}", frame.image_desc.left(),
-        frame.image_desc.top()), w=size_digits)?;
+    write!(
+        out,
+        " {:>w$}",
+        &format!("{},{}", frame.image_desc.left(), frame.image_desc.top()),
+        w = size_digits
+    )?;
     let c = frame.image_desc.color_table_config().len();
     if c > 0 {
         out.set_color(&bold)?;
@@ -173,8 +208,12 @@ fn write_frame(frame: &Frame, out: &mut StandardStream, width: u16,
     let tc = if let Some(gc) = &frame.graphic_control_ext {
         if let Some(tc) = gc.transparent_color() {
             format!("{}", tc)
-        } else { "-".to_string() }
-    } else { "-".to_string() };
+        } else {
+            "-".to_string()
+        }
+    } else {
+        "-".to_string()
+    };
     if tc == "-" {
         out.set_color(&dflt)?;
     } else {
