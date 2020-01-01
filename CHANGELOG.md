@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.3.1] - 2019-05-28
 ### Changed
 * Fixed u8 overflow in ImageData.add_data method.
 
