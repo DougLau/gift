@@ -3,7 +3,7 @@ use gift::*;
 use std::error::Error;
 use std::fs::File;
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let mut f = File::create("test.gif")?;
     let g_tbl = ColorTableConfig::new(
         ColorTableExistence::Present,

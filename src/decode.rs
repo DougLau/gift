@@ -1,8 +1,7 @@
 // decode.rs
 //
-// Copyright (c) 2019  Douglas Lau
+// Copyright (c) 2019-2020  Douglas Lau
 //
-
 use crate::block::*;
 use crate::error::DecodeError;
 use lzw;
@@ -69,7 +68,7 @@ impl<R: Read> IntoIterator for Decoder<R> {
 /// ## Example: Read comments in a GIF
 /// ```
 /// # use crate::gift::block::Block;
-/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # let gif = &[
 /// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
 /// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
@@ -505,7 +504,7 @@ impl ImageData {
 ///
 /// ## Example: Count frames in a GIF
 /// ```
-/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # let gif = &[
 /// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
 /// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
@@ -656,7 +655,7 @@ impl<R: Read> FrameDecoder<R> {
 ///
 /// ## Example: Get the last raster in a GIF animation
 /// ```
-/// # fn main() -> Result<(), Box<std::error::Error>> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # let gif = &[
 /// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
 /// #   0x02, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00,
@@ -816,7 +815,7 @@ mod test {
         2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
     ];
     #[test]
-    fn block_1() -> Result<(), Box<Error>> {
+    fn block_1() -> Result<(), Box<dyn Error>> {
         use crate::block::*;
         let colors = &[
             0xFF, 0xFF, 0xFF,
@@ -873,14 +872,14 @@ mod test {
         Ok(())
     }
     #[test]
-    fn frame_1() -> Result<(), Box<Error>> {
+    fn frame_1() -> Result<(), Box<dyn Error>> {
         for f in Decoder::new(GIF_1).into_frame_decoder() {
             assert_eq!(f?.image_data.data(), IMAGE_1);
         }
         Ok(())
     }
     #[test]
-    fn image_1() -> Result<(), Box<Error>> {
+    fn image_1() -> Result<(), Box<dyn Error>> {
         use pix::Rgba8;
         let red = Rgba8::new(0xFF, 0x00, 0x00);
         let blu = Rgba8::new(0x00, 0x00, 0xFF);
