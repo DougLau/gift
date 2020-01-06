@@ -17,14 +17,13 @@ log = "0.4"
 lzw = "0.10"
 pix = "0.7"
 
-# NOTE: for cmd only -- lib has no optional features
-termcolor = { version = "1.0.4", optional = true }
-
-[dev-dependencies]
-env_logger = "0.6.1"
+# NOTE: for cmd only -- library has no optional features
+clap = { version = "2.33", optional = true }
+env_logger = { version = "0.7", optional = true }
+termcolor = { version = "1", optional = true }
 
 [features]
-cmd = ["termcolor"]
+cmd = ["clap", "env_logger", "termcolor"]
 
 [[bin]]
 name = "gift"

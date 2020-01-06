@@ -2,68 +2,18 @@
 //
 // Copyright (c) 2019-2020  Douglas Lau
 //
+//! GIF file decoding
 use crate::block::*;
-use crate::error::DecodeError;
-use lzw;
+use crate::error::Error;
 use pix::{Raster, RasterBuilder, Region, Rgba8};
 use std::io::{BufReader, ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
 
-/// Builder for GIF decoders.
+/// An Iterator for [Block]s within a GIF file.
 ///
-/// * [BlockDecoder](struct.BlockDecoder.html) — low-level,
-///   [Block](block/enum.Block.html)s
-/// * [FrameDecoder](struct.FrameDecoder.html) — mid-level,
-///   [Frame](block/struct.Frame.html)s
-/// * [RasterDecoder](struct.RasterDecoder.html) — high-level, Rasters
-pub struct Decoder<R: Read> {
-    reader: BufReader<R>,
-    max_image_sz: Option<usize>,
-}
-
-impl<R: Read> Decoder<R> {
-    /// Create a new Decoder
-    pub fn new(r: R) -> Self {
-        Decoder {
-            reader: BufReader::new(r),
-            max_image_sz: Some(1 << 25),
-        }
-    }
-    /// Set the maximum image size (in bytes) to allow for decoding.
-    pub fn max_image_sz(mut self, max_image_sz: Option<usize>) -> Self {
-        self.max_image_sz = max_image_sz;
-        self
-    }
-    /// Convert into a block decoder.
-    pub fn into_block_decoder(self) -> BlockDecoder<R> {
-        BlockDecoder::new(self.reader, self.max_image_sz)
-    }
-    /// Convert into a frame decoder.
-    pub fn into_frame_decoder(self) -> FrameDecoder<R> {
-        FrameDecoder::new(self.into_block_decoder())
-    }
-    /// Convert into a raster decoder.
-    pub fn into_raster_decoder(self) -> RasterDecoder<R> {
-        RasterDecoder::new(self.into_frame_decoder())
-    }
-}
-
-impl<R: Read> IntoIterator for Decoder<R> {
-    type Item = Result<Raster<Rgba8>, DecodeError>;
-    type IntoIter = RasterDecoder<R>;
-
-    /// Convert into a raster decoder
-    fn into_iter(self) -> Self::IntoIter {
-        self.into_raster_decoder()
-    }
-}
-
-/// Decoder for iterating [Block](block/enum.Block.html)s within a GIF file.
-///
-/// Build with
-/// Decoder.[into_block_iter](struct.Decoder.html#method.into_block_iter).
+/// Build with Decoder.[into_blocks].
 ///
 /// ## Example: Read comments in a GIF
 /// ```
@@ -77,8 +27,7 @@ impl<R: Read> IntoIterator for Decoder<R> {
 /// #   0x10, 0x05, 0x00, 0x3b,
 /// # ][..];
 /// // ... open a File as "gif"
-/// let block_dec = gift::Decoder::new(gif).into_block_decoder();
-/// for block in block_dec {
+/// for block in gift::Decoder::new(gif).into_blocks() {
 ///     if let Block::Comment(b) = block? {
 ///         for c in b.comments() {
 ///             println!("{}", &String::from_utf8_lossy(&c));
@@ -88,18 +37,29 @@ impl<R: Read> IntoIterator for Decoder<R> {
 /// # Ok(())
 /// # }
 /// ```
-pub struct BlockDecoder<R: Read> {
+///
+/// [Block]: ../block/enum.Block.html
+/// [into_blocks]: ../struct.Decoder.html#method.into_blocks
+///
+pub struct Blocks<R: Read> {
+    /// Buffered reader
     reader: BufReader<R>,
+    /// Maximum image size in bytes
     max_image_sz: Option<usize>,
+    /// Data buffer
     buffer: Vec<u8>,
+    /// Expected next block
     expected_next: Option<(BlockCode, usize)>,
+    /// Size of image data
     image_sz: usize,
+    /// LZW decoder
     decoder: Option<lzw::Decoder<lzw::LsbReader>>,
+    /// Flag when done
     done: bool,
 }
 
-impl<R: Read> Iterator for BlockDecoder<R> {
-    type Item = Result<Block, DecodeError>;
+impl<R: Read> Iterator for Blocks<R> {
+    type Item = Result<Block, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -115,11 +75,13 @@ impl<R: Read> Iterator for BlockDecoder<R> {
     }
 }
 
-impl<R: Read> BlockDecoder<R> {
-    /// Create a new block decoder
-    fn new(reader: BufReader<R>, max_image_sz: Option<usize>) -> Self {
+impl<R: Read> Blocks<R> {
+    /// Create a new block iterator
+    pub(crate) fn new(reader: BufReader<R>, max_image_sz: Option<usize>)
+        -> Self
+    {
         use self::BlockCode::Header_;
-        BlockDecoder {
+        Blocks {
             reader,
             max_image_sz,
             buffer: Vec::with_capacity(BUF_SZ),
@@ -130,13 +92,15 @@ impl<R: Read> BlockDecoder<R> {
         }
     }
     /// Examine buffer for block code and size.
-    fn examine_buffer(&mut self) -> Result<(BlockCode, usize), DecodeError> {
-        let buf = &self.buffer[..];
-        let t = if buf.len() > 0 { buf[0] } else { 0 };
+    fn examine_buffer(&mut self) -> Result<(BlockCode, usize), Error> {
+        let code = *self.buffer
+            .iter()
+            .next()
+            .ok_or(Error::UnexpectedEndOfFile)?;
         let bc_sz =
             self.expected_next
                 .take()
-                .or_else(|| match BlockCode::from_u8(t) {
+                .or_else(|| match BlockCode::from_u8(code) {
                     Some(b) => Some((b, b.size())),
                     None => None,
                 });
@@ -145,7 +109,7 @@ impl<R: Read> BlockDecoder<R> {
                 self.expected_next = self.expected(b.0);
                 Ok(b)
             }
-            None => Err(DecodeError::InvalidBlockCode),
+            None => Err(Error::InvalidBlockCode),
         }
     }
     /// Get next expected block code and size
@@ -191,7 +155,7 @@ impl<R: Read> BlockDecoder<R> {
         }
     }
     /// Decode the next block (including all sub-blocks).
-    fn next_block(&mut self) -> Result<Block, DecodeError> {
+    fn next_block(&mut self) -> Result<Block, Error> {
         self.fill_buffer()?;
         let (bc, sz) = self.examine_buffer()?;
         let mut block = self.decode_block(bc, sz)?;
@@ -202,17 +166,17 @@ impl<R: Read> BlockDecoder<R> {
         Ok(block)
     }
     /// Check end of block (after sub-blocks)
-    fn check_block_end(&mut self, block: &Block) -> Result<(), DecodeError> {
+    fn check_block_end(&mut self, block: &Block) -> Result<(), Error> {
         if let Block::ImageData(b) = block {
             self.decoder = None;
             if !b.is_complete() {
-                return Err(DecodeError::IncompleteImageData);
+                return Err(Error::IncompleteImageData);
             }
         }
         Ok(())
     }
     /// Fill the buffer from reader
-    fn fill_buffer(&mut self) -> Result<(), DecodeError> {
+    fn fill_buffer(&mut self) -> Result<(), Error> {
         let mut len = self.buffer.len();
         self.buffer.resize(BUF_SZ, 0);
         while len < BUF_SZ {
@@ -231,7 +195,7 @@ impl<R: Read> BlockDecoder<R> {
         &mut self,
         bc: BlockCode,
         sz: usize,
-    ) -> Result<Block, DecodeError> {
+    ) -> Result<Block, Error> {
         let len = self.buffer.len();
         if len >= sz {
             debug!("  block  : {:?} {:?}", bc, sz);
@@ -240,7 +204,7 @@ impl<R: Read> BlockDecoder<R> {
             self.check_block_start(&block)?;
             Ok(block)
         } else {
-            Err(DecodeError::UnexpectedEndOfFile)
+            Err(Error::UnexpectedEndOfFile)
         }
     }
     /// Parse a block in the buffer
@@ -248,7 +212,7 @@ impl<R: Read> BlockDecoder<R> {
         &self,
         bc: BlockCode,
         sz: usize,
-    ) -> Result<Block, DecodeError> {
+    ) -> Result<Block, Error> {
         use crate::block::BlockCode::*;
         let buf = &self.buffer[..sz];
         Ok(match bc {
@@ -263,13 +227,13 @@ impl<R: Read> BlockDecoder<R> {
         })
     }
     /// Check start of block (before sub-blocks)
-    fn check_block_start(&mut self, block: &Block) -> Result<(), DecodeError> {
+    fn check_block_start(&mut self, block: &Block) -> Result<(), Error> {
         match block {
             Block::ImageDesc(b) => {
                 self.image_sz = b.image_sz();
                 if let Some(sz) = self.max_image_sz {
                     if self.image_sz > sz {
-                        return Err(DecodeError::TooLargeImage);
+                        return Err(Error::TooLargeImage);
                     }
                 }
             }
@@ -287,7 +251,7 @@ impl<R: Read> BlockDecoder<R> {
     fn decode_sub_block(
         &mut self,
         block: &mut Block,
-    ) -> Result<bool, DecodeError> {
+    ) -> Result<bool, Error> {
         self.fill_buffer()?;
         let len = self.buffer.len();
         if len > 0 {
@@ -302,14 +266,14 @@ impl<R: Read> BlockDecoder<R> {
                 return Ok(sz > 0);
             }
         }
-        Err(DecodeError::UnexpectedEndOfFile)
+        Err(Error::UnexpectedEndOfFile)
     }
     /// Parse a sub-block in the buffer
     fn parse_sub_block(
         &mut self,
         block: &mut Block,
         sz: usize,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), Error> {
         assert!(sz <= 256);
         use crate::block::Block::*;
         match block {
@@ -328,7 +292,7 @@ impl<R: Read> BlockDecoder<R> {
         &mut self,
         b: &mut ImageData,
         sz: usize,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), Error> {
         if let Some(ref mut dec) = &mut self.decoder {
             let mut s = 1;
             while s < sz {
@@ -345,23 +309,23 @@ impl<R: Read> BlockDecoder<R> {
 
 impl Header {
     /// Decode a Header block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
+    fn from_buf(buf: &[u8]) -> Result<Self, Error> {
         assert_eq!(buf.len(), BlockCode::Header_.size());
         if &buf[..3] == b"GIF" {
             let version = [buf[3], buf[4], buf[5]];
             match &version {
                 b"87a" | b"89a" => Ok(Header::with_version(version)),
-                _ => Err(DecodeError::UnsupportedVersion(version)),
+                _ => Err(Error::UnsupportedVersion(version)),
             }
         } else {
-            Err(DecodeError::MalformedHeader)
+            Err(Error::MalformedHeader)
         }
     }
 }
 
 impl LogicalScreenDesc {
     /// Decode a Logical Screen Descriptor block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
+    fn from_buf(buf: &[u8]) -> Result<Self, Error> {
         assert_eq!(buf.len(), BlockCode::LogicalScreenDesc_.size());
         let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
         let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
@@ -386,7 +350,7 @@ impl GlobalColorTable {
 
 impl ImageDesc {
     /// Decode an Image Descriptor block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self, DecodeError> {
+    fn from_buf(buf: &[u8]) -> Result<Self, Error> {
         assert_eq!(buf.len(), BlockCode::ImageDesc_.size());
         let left = u16::from(buf[2]) << 8 | u16::from(buf[1]);
         let top = u16::from(buf[4]) << 8 | u16::from(buf[3]);
@@ -411,7 +375,7 @@ impl LocalColorTable {
 
 impl ImageData {
     /// Decode an Image Data block from a buffer
-    fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self, DecodeError> {
+    fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self, Error> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
         let min_code_size = buf[0];
         let mut selfy = Self::new(image_sz);
@@ -420,7 +384,7 @@ impl ImageData {
         if selfy.min_code_size() == min_code_size {
             Ok(selfy)
         } else {
-            Err(DecodeError::InvalidCodeSize)
+            Err(Error::InvalidCodeSize)
         }
     }
 }
@@ -450,7 +414,7 @@ impl PlainText {
 
 impl GraphicControl {
     /// Parse a Graphic Control extension block
-    fn parse_buf(&mut self, buf: &[u8]) -> Result<(), DecodeError> {
+    fn parse_buf(&mut self, buf: &[u8]) -> Result<(), Error> {
         if buf.len() == 4 {
             self.set_flags(buf[0]);
             let delay = u16::from(buf[2]) << 8 | u16::from(buf[1]);
@@ -458,7 +422,7 @@ impl GraphicControl {
             self.set_transparent_color_idx(buf[3]);
             Ok(())
         } else {
-            Err(DecodeError::MalformedGraphicControlExtension)
+            Err(Error::MalformedGraphicControlExtension)
         }
     }
 }
@@ -497,10 +461,9 @@ impl ImageData {
     }
 }
 
-/// Decoder for iterating [Frame](block/struct.Frame.html)s within a GIF file.
+/// An Iterator for [Frame]s within a GIF file.
 ///
-/// Build with
-/// Decoder.[into_frame_decoder](struct.Decoder.html#method.into_frame_decoder).
+/// Build with Decoder.[into_frames].
 ///
 /// ## Example: Count frames in a GIF
 /// ```
@@ -513,24 +476,33 @@ impl ImageData {
 /// #   0x10, 0x05, 0x00, 0x3b,
 /// # ][..];
 /// // ... open a File as "gif"
-/// let frame_dec = gift::Decoder::new(gif).into_frame_decoder();
-/// println!("frame count: {}", frame_dec.count());
+/// let frames = gift::Decoder::new(gif).into_frames();
+/// println!("frame count: {}", frames.count());
 /// # Ok(())
 /// # }
 /// ```
-pub struct FrameDecoder<R: Read> {
-    block_dec: BlockDecoder<R>,
+///
+/// [Frame]: ../block/struct.Frame.html
+/// [into_frames]: ../struct.Decoder.html#method.into_frames
+///
+pub struct Frames<R: Read> {
+    /// Block decoder
+    blocks: Blocks<R>,
+    /// Preamble blocks
     preamble: Option<Preamble>,
+    /// Graphic control block
     graphic_control_ext: Option<GraphicControl>,
+    /// Image description block
     image_desc: Option<ImageDesc>,
+    /// Local color table block
     local_color_table: Option<LocalColorTable>,
 }
 
-impl<R: Read> Iterator for FrameDecoder<R> {
-    type Item = Result<Frame, DecodeError>;
+impl<R: Read> Iterator for Frames<R> {
+    type Item = Result<Frame, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(block) = self.block_dec.next() {
+        while let Some(block) = self.blocks.next() {
             match block {
                 Ok(b) => {
                     match self.handle_block(b) {
@@ -546,11 +518,11 @@ impl<R: Read> Iterator for FrameDecoder<R> {
     }
 }
 
-impl<R: Read> FrameDecoder<R> {
+impl<R: Read> Frames<R> {
     /// Create a new frame decoder
-    fn new(block_dec: BlockDecoder<R>) -> Self {
-        FrameDecoder {
-            block_dec,
+    pub(crate) fn new(blocks: Blocks<R>) -> Self {
+        Frames {
+            blocks,
             preamble: None,
             graphic_control_ext: None,
             image_desc: None,
@@ -559,18 +531,18 @@ impl<R: Read> FrameDecoder<R> {
     }
     /// Read preamble blocks.  These are the blocks at the beginning of the
     /// file, before any frame blocks.
-    pub fn preamble(&mut self) -> Result<Option<Preamble>, DecodeError> {
+    pub fn preamble(&mut self) -> Result<Option<Preamble>, Error> {
         if self.has_frame() {
             return Ok(None);
         }
         self.preamble = Some(Preamble::default());
-        while let Some(block) = self.block_dec.next() {
+        while let Some(block) = self.blocks.next() {
             self.handle_block(block?)?;
             if self.has_frame() {
                 return Ok(self.preamble.take());
             }
         }
-        Err(DecodeError::InvalidBlockSequence)
+        Err(Error::InvalidBlockSequence)
     }
     /// Check if any frame blocks exist
     fn has_frame(&self) -> bool {
@@ -582,7 +554,7 @@ impl<R: Read> FrameDecoder<R> {
     fn handle_block(
         &mut self,
         block: Block,
-    ) -> Result<Option<Frame>, DecodeError> {
+    ) -> Result<Option<Frame>, Error> {
         match block {
             Block::Header(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
@@ -613,13 +585,13 @@ impl<R: Read> FrameDecoder<R> {
             }
             Block::GraphicControl(b) => {
                 if self.has_frame() {
-                    return Err(DecodeError::InvalidBlockSequence);
+                    return Err(Error::InvalidBlockSequence);
                 }
                 self.graphic_control_ext = Some(b);
             }
             Block::ImageDesc(b) => {
                 if self.image_desc.is_some() {
-                    return Err(DecodeError::InvalidBlockSequence);
+                    return Err(Error::InvalidBlockSequence);
                 }
                 self.image_desc = Some(b);
             }
@@ -639,7 +611,7 @@ impl<R: Read> FrameDecoder<R> {
                     );
                     return Ok(Some(f));
                 } else {
-                    return Err(DecodeError::InvalidBlockSequence);
+                    return Err(Error::InvalidBlockSequence);
                 }
             }
             _ => {}
@@ -648,10 +620,9 @@ impl<R: Read> FrameDecoder<R> {
     }
 }
 
-/// Decoder for iterating `Raster`s within a GIF file.
+/// An Iterator for `Raster`s within a GIF file.
 ///
-/// Build with
-/// Decoder.[into_raster_decoder](struct.Decoder.html#method.into_raster_decoder).
+/// Build with Decoder.[into_iter] (or [into_rasters]).
 ///
 /// ## Example: Get the last raster in a GIF animation
 /// ```
@@ -664,22 +635,30 @@ impl<R: Read> FrameDecoder<R> {
 /// #   0x10, 0x05, 0x00, 0x3b,
 /// # ][..];
 /// // ... open a File as "gif"
-/// let raster_dec = gift::Decoder::new(gif).into_raster_decoder();
-/// if let Some(raster) = raster_dec.last() {
-///     // work with raster
+/// if let Some(raster) = gift::Decoder::new(gif).into_iter().last() {
+///     // was there a decoding error?
+///     let raster = raster?;
+///     // ... work with raster
 /// }
 /// # Ok(())
 /// # }
 /// ```
-pub struct RasterDecoder<R: Read> {
-    frame_dec: FrameDecoder<R>,
+///
+/// [into_iter]: ../struct.Decoder.html#method.into_iter
+/// [into_rasters]: ../struct.Decoder.html#method.into_rasters
+///
+pub struct Rasters<R: Read> {
+    /// Frame decoder
+    frames: Frames<R>,
+    /// Global color table block
     global_color_table: Option<GlobalColorTable>,
-    raster: Option<Raster<Rgba8>>, // FIXME: parameterize pix trait
+    /// Current raster
+    raster: Option<Raster<Rgba8>>, // TODO: parameterize pix trait
 }
 
-impl<R: Read> Iterator for RasterDecoder<R> {
-    // FIXME: need delay time (and color table for indexed rasters)
-    type Item = Result<Raster<Rgba8>, DecodeError>;
+impl<R: Read> Iterator for Rasters<R> {
+    // TODO: need delay time (and color table for indexed rasters)
+    type Item = Result<Raster<Rgba8>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let None = self.raster {
@@ -694,22 +673,22 @@ impl<R: Read> Iterator for RasterDecoder<R> {
     }
 }
 
-impl<R: Read> RasterDecoder<R> {
+impl<R: Read> Rasters<R> {
     /// Create a new raster decoder
-    fn new(frame_dec: FrameDecoder<R>) -> Self {
-        RasterDecoder {
-            frame_dec,
+    pub(crate) fn new(frames: Frames<R>) -> Self {
+        Rasters {
+            frames,
             global_color_table: None,
             raster: None,
         }
     }
     /// Make the initial raster
-    fn make_raster(&mut self) -> Result<(), DecodeError> {
-        if let Some(mut p) = self.frame_dec.preamble()? {
+    fn make_raster(&mut self) -> Result<(), Error> {
+        if let Some(mut p) = self.frames.preamble()? {
             self.global_color_table = p.global_color_table.take();
             let w = p.screen_width().into();
             let h = p.screen_height().into();
-            self.raster = Some(RasterBuilder::<Rgba8>::new().with_clear(w, h));
+            self.raster = Some(RasterBuilder::new().with_clear(w, h));
             Ok(())
         } else {
             warn!("Preamble not found!");
@@ -717,16 +696,16 @@ impl<R: Read> RasterDecoder<R> {
         }
     }
     /// Get the next raster
-    fn next_raster(&mut self) -> Option<Result<Raster<Rgba8>, DecodeError>> {
+    fn next_raster(&mut self) -> Option<Result<Raster<Rgba8>, Error>> {
         assert!(self.raster.is_some());
-        match self.frame_dec.next() {
+        match self.frames.next() {
             Some(Ok(f)) => Some(self.apply_frame(f)),
             Some(Err(e)) => Some(Err(e)),
             None => None,
         }
     }
     /// Apply a frame to the raster
-    fn apply_frame(&mut self, f: Frame) -> Result<Raster<Rgba8>, DecodeError> {
+    fn apply_frame(&mut self, f: Frame) -> Result<Raster<Rgba8>, Error> {
         let r = if let DisposalMethod::Previous = f.disposal_method() {
             let r = self.raster.as_ref().unwrap();
             let mut r = RasterBuilder::new().with_raster(r);
@@ -755,7 +734,7 @@ fn update_raster(
     r: &mut Raster<Rgba8>,
     f: &Frame,
     t: &Option<GlobalColorTable>,
-) -> Result<(), DecodeError> {
+) -> Result<(), Error> {
     let x: u32 = f.left().into();
     let y: u32 = f.top().into();
     let w: u32 = f.width().into();
@@ -766,7 +745,7 @@ fn update_raster(
         } else if let Some(c) = t {
             c.colors()
         } else {
-            return Err(DecodeError::MissingColorTable);
+            return Err(Error::MissingColorTable);
         };
         let trans = f.transparent_color();
         for yi in y..y + h {
@@ -775,7 +754,7 @@ fn update_raster(
                 let idx = f.image_data.data()[(yr + xi) as usize];
                 let i = 3 * idx as usize;
                 if i + 2 > clrs.len() {
-                    return Err(DecodeError::InvalidColorIndex);
+                    return Err(Error::InvalidColorIndex);
                 }
                 let p = match trans {
                     Some(t) if t == idx => Rgba8::default(),
@@ -786,13 +765,13 @@ fn update_raster(
         }
         Ok(())
     } else {
-        Err(DecodeError::InvalidFrameDimensions)
+        Err(Error::InvalidFrameDimensions)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::Decoder;
+    use super::super::Decoder;
     use std::error::Error;
     const GIF_1: &[u8] = &[
         0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00, 0x0A, 0x00, 0x91, 0x00,
@@ -823,7 +802,7 @@ mod test {
             0x00, 0x00, 0xFF,
             0x00, 0x00, 0x00,
         ][..];
-        let mut dec = Decoder::new(GIF_1).into_block_decoder();
+        let mut dec = Decoder::new(GIF_1).into_blocks();
         match dec.next() {
             Some(Ok(Block::Header(b))) => assert_eq!(b, Header::default()),
             _ => panic!(),
@@ -873,7 +852,7 @@ mod test {
     }
     #[test]
     fn frame_1() -> Result<(), Box<dyn Error>> {
-        for f in Decoder::new(GIF_1).into_frame_decoder() {
+        for f in Decoder::new(GIF_1).into_frames() {
             assert_eq!(f?.image_data.data(), IMAGE_1);
         }
         Ok(())

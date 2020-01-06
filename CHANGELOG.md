@@ -1,4 +1,16 @@
 ## [Unreleased]
+### Added
+* Encoder::into_block_enc()
+* Encoder::into_frame_enc()
+* Encoder::into_raster_enc()
+### Changed
+* BlockDecoder to decoder::Blocks
+* FrameDecoder to decoder::Frames
+* RasterDecoder to decoder::Rasters
+* Decoder::into_block_decoder() to into_blocks()
+* Decoder::into_frame_decoder() to into_frames()
+* Decoder::into_raster_decoder() to into_rasters()
+* FrameEncoder to encoder::FrameEnc
 
 ## [0.3.1] - 2019-05-28
 ### Changed

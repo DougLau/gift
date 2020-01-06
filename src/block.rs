@@ -1,6 +1,6 @@
 // block.rs
 //
-// Copyright (c) 2019  Douglas Lau
+// Copyright (c) 2019-2020  Douglas Lau
 //
 //! A GIF file consists of a sequence of [Block](enum.Block.html)s in a
 //! specific order.
@@ -43,9 +43,12 @@ pub enum ColorTableOrdering {
 /// A color table configuration defines the size and ordering of a color table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ColorTableConfig {
+    /// Does the table exist?
     existence: ColorTableExistence,
+    /// Is the table sorted?
     ordering: ColorTableOrdering,
-    table_len: usize, // must be between 2...256
+    /// Number of entries; must be between 2..=256
+    table_len: usize,
 }
 
 impl Default for ColorTableConfig {
@@ -282,10 +285,15 @@ impl Header {
 /// in the file.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LogicalScreenDesc {
+    /// Pixel width of logical screen
     screen_width: u16,
+    /// Pixel height of logical screen
     screen_height: u16,
+    /// Bit flags for color table
     flags: u8,
-    background_color_idx: u8, // index into global color table
+    /// Index into global color table for background color
+    background_color_idx: u8,
+    /// Pixel aspect ratio is an obsolete GIF feature
     pixel_aspect_ratio: u8,
 }
 
@@ -420,7 +428,8 @@ impl GlobalColorTable {
 /// The plain text extension block is an obsolete GIF feature.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlainText {
-    sub_blocks: Vec<Vec<u8>>, // sequence of sub-blocks
+    /// Sequence of sub-blocks
+    sub_blocks: Vec<Vec<u8>>,
 }
 
 impl PlainText {
@@ -439,8 +448,11 @@ impl PlainText {
 /// frame.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GraphicControl {
+    /// Bit flags
     flags: u8,
-    delay_time_cs: u16, // delay in centiseconds (hundredths of a second)
+    /// Delay in centiseconds (hundredths of a second)
+    delay_time_cs: u16,
+    /// Index into global color table for transparent color
     transparent_color_idx: u8,
 }
 
@@ -518,6 +530,7 @@ impl GraphicControl {
 }
 
 /// A comment extension block contains unstructured file metadata.
+///
 /// The specification recommends using the ASCII encoding.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Comment {
@@ -540,7 +553,8 @@ impl Comment {
 /// animation.  Other uses are ignored by most GIF readers.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Application {
-    app_data: Vec<Vec<u8>>, // sequence of sub-blocks
+    /// Sequence of sub-blocks
+    app_data: Vec<Vec<u8>>,
 }
 
 impl Application {
@@ -589,7 +603,8 @@ impl Application {
 /// by non-standard encoders.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Unknown {
-    sub_blocks: Vec<Vec<u8>>, // sequence of sub-blocks (first has ext_id)
+    /// Sequence of sub-blocks (first has ext_id)
+    sub_blocks: Vec<Vec<u8>>,
 }
 
 impl Unknown {
@@ -619,10 +634,15 @@ impl Unknown {
 /// The image descriptor block contains properties which apply to one frame.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ImageDesc {
+    /// Left position relative to logical screen
     left: u16,
+    /// Top position relative to logical screen
     top: u16,
+    /// Pixel width
     width: u16,
+    /// Pixel height
     height: u16,
+    /// Bit flags
     flags: u8,
 }
 
@@ -771,7 +791,8 @@ impl LocalColorTable {
 /// An image data block contains image data for one frame.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageData {
-    data: Vec<u8>, // first byte of data is LZW minimum code size
+    /// Compressed; first byte is LZW minimum code size
+    data: Vec<u8>,
 }
 
 impl ImageData {
@@ -947,7 +968,7 @@ impl From<Trailer> for Block {
 
 /// The preamble blocks are the first few
 /// blocks in a GIF file, before any frames.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Preamble {
     /// Header block
     pub header: Header,

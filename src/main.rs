@@ -1,38 +1,82 @@
 // main.rs      gift command
 //
-// Copyright (c) 2019  Douglas Lau
+// Copyright (c) 2019-2020  Douglas Lau
 //
 #![forbid(unsafe_code)]
 
-use gift::block::{DisposalMethod, Frame};
-use gift::Decoder;
-use std::env;
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use gift::{
+    block::{DisposalMethod, Frame}, Decoder
+};
 use std::error::Error;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-fn main() -> Result<(), Box<Error>> {
+/// Crate version
+const VERSION: &'static str = std::env!("CARGO_PKG_VERSION");
+
+/// Main entry point
+fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::builder().format_timestamp(None).init();
     let mut out = StandardStream::stdout(ColorChoice::Always);
-    let mut red = ColorSpec::new();
-    red.set_fg(Some(Color::Red)).set_intense(true);
-    // FIXME: add subcommands: unwrap, wrap, peek, show
-    if let Some(cmd) = env::args().nth(0) {
-        if let Some(path) = env::args().nth(1) {
-            show(&mut out, path)?;
-        } else {
-            out.set_color(&red)?;
-            writeln!(out, "usage: {} [filename]", cmd)?;
-        }
-    } else {
-        out.set_color(&red)?;
-        writeln!(out, "environment failure!")?;
+    match create_app().get_matches().subcommand() {
+        ("show", Some(matches)) => show(&mut out, matches)?,
+        ("unwrap", Some(_matches)) => todo!(),
+        ("wrap", Some(_matches)) => todo!(),
+        ("peek", Some(_matches)) => todo!(),
+        _ => panic!(),
     }
     out.reset()?;
     Ok(())
 }
 
-fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
+/// Create clap App
+fn create_app() -> App<'static, 'static> {
+    App::new("gift")
+        .version(VERSION)
+        .setting(AppSettings::GlobalVersion)
+        .about("GIF file utility")
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .subcommand(SubCommand::with_name("show")
+            .about("Show GIF block table")
+            .arg(Arg::with_name("files")
+                .required(true)
+                .min_values(1)
+                .help("input file(s)")))
+        .subcommand(SubCommand::with_name("unwrap")
+            .about("Unwrap frames from a GIF")
+            .arg(Arg::with_name("file")
+                .required(true)
+                .help("input file")))
+        .subcommand(SubCommand::with_name("wrap")
+            .about("Wrap frames into a GIF")
+            .arg(Arg::with_name("file")
+                .required(true)
+                .help("input file")))
+        .subcommand(SubCommand::with_name("peek")
+            .about("Peek into a GIF")
+            .arg(Arg::with_name("file")
+                .required(true)
+                .help("input file")))
+}
+
+/// Handle show subcommand
+fn show(out: &mut StandardStream, matches: &ArgMatches)
+    -> Result<(), Box<dyn Error>>
+{
+    let values = matches.values_of_os("files").unwrap();
+    for path in values {
+        show_file(out, path)?;
+    }
+    Ok(())
+}
+
+/// Show one GIF file
+fn show_file(out: &mut StandardStream, path: &OsStr)
+    -> Result<(), Box<dyn Error>>
+{
     let mut magenta = ColorSpec::new();
     magenta.set_fg(Some(Color::Magenta));
     let mut red = ColorSpec::new();
@@ -46,7 +90,7 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
         .set_intense(true)
         .set_bold(true);
     let f = File::open(&path)?;
-    let mut frame_dec = Decoder::new(f).into_frame_decoder();
+    let mut frame_dec = Decoder::new(f).into_frames();
     let preamble = if let Some(p) = frame_dec.preamble()? {
         p
     } else {
@@ -75,7 +119,7 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
         }
     }
     out.set_color(&magenta)?;
-    writeln!(out, "{}", path)?;
+    writeln!(out, "{:?}", path)?;
     out.set_color(&bold)?;
     write!(out, "GIF{}, frames: {}", gif, frames.len())?;
     if let Some(ap) = preamble.loop_count_ext {
@@ -104,7 +148,7 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
     writeln!(out, " Clrs Trn")?;
     let global_clr = preamble.logical_screen_desc.color_table_config().len();
     for (n, f) in frames.into_iter().enumerate() {
-        write_frame(
+        show_frame(
             &f,
             out,
             width,
@@ -118,7 +162,8 @@ fn show(out: &mut StandardStream, path: String) -> Result<(), Box<Error>> {
     Ok(())
 }
 
-fn write_frame(
+/// Show one frame of a GIF file
+fn show_frame(
     frame: &Frame,
     out: &mut StandardStream,
     width: u16,
@@ -127,7 +172,7 @@ fn write_frame(
     number: usize,
     frame_digits: usize,
     size_digits: usize,
-) -> Result<(), Box<Error>> {
+) -> Result<(), Box<dyn Error>> {
     let mut dflt = ColorSpec::new();
     dflt.set_fg(Some(Color::White));
     let mut bold = ColorSpec::new();
@@ -137,15 +182,12 @@ fn write_frame(
     let mut red = ColorSpec::new();
     red.set_fg(Some(Color::Red)).set_intense(true);
     out.set_color(&dflt)?;
-    write!(
-        out,
-        "{}",
-        if frame.image_desc.interlaced() {
-            'i'
-        } else {
-            ' '
-        }
-    )?;
+    let interlaced = if frame.image_desc.interlaced() {
+        'i'
+    } else {
+        ' '
+    };
+    write!(out, "{}", interlaced)?;
     out.set_color(&bold)?;
     write!(out, "{:>w$}", number, w = frame_digits)?;
     let d = if let Some(gc) = &frame.graphic_control_ext {
@@ -223,13 +265,14 @@ fn write_frame(
     Ok(())
 }
 
+/// Calculate digits in a number
 fn digits<T: Into<usize>>(v: T) -> usize {
     let v = v.into();
     match v {
-        0...9 => 1,
-        10...99 => 2,
-        100...999 => 3,
-        1000...9999 => 4,
+        0..=9 => 1,
+        10..=99 => 2,
+        100..=999 => 3,
+        1000..=9999 => 4,
         _ => 5,
     }
 }

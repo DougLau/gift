@@ -1,39 +1,40 @@
 // encode.rs
 //
-// Copyright (c) 2019  Douglas Lau
+// Copyright (c) 2019-2020  Douglas Lau
 //
+//! GIF file encoding
 use crate::block::*;
-use crate::EncodeError;
+use crate::Error;
+use pix::{Gray8, Palette, Raster, Rgb8};
+use std::convert::TryInto;
 use std::io::{self, BufWriter, Write};
 
-/// Encoder for GIF files.
-pub struct Encoder<W: Write> {
-    // FIXME: this should be a builder for BlockEncoder / FrameEncoder
-    //        Also add builder option for global vs. local color tables.
-    //        Also builder option for color table creation mode.  Use Lab or Lch
-    //        with octree clustering and dithering.  Check out exoquant.
+/// Encoder for writing [Block]s into a GIF file.
+///
+/// Build with Encoder.[into_block_enc].
+///
+/// [Block]: ../block/enum.Block.html
+/// [into_block_enc]: ../struct.Encoder.html#method.into_block_enc
+pub struct BlockEnc<W: Write> {
+    /// Writer for output data
     writer: BufWriter<W>,
 }
 
-/// Encoder for writing [Frame](block/struct.Frame.html)s into a GIF file.
-pub struct FrameEncoder<W: Write> {
-    encoder: Encoder<W>,
-    has_preamble: bool,
-    has_trailer: bool,
-}
-
-impl<W: Write> Encoder<W> {
+impl<W: Write> BlockEnc<W> {
     /// Create a new GIF encoder.
-    pub fn new(w: W) -> Self {
-        Encoder {
-            writer: BufWriter::new(w),
+    pub(crate) fn new(writer: BufWriter<W>) -> Self {
+        BlockEnc {
+            writer
         }
     }
     /// Encode one [Block](block/enum.Block.html).
-    pub fn encode(&mut self, block: &Block) -> Result<(), EncodeError> {
+    pub fn encode<B>(&mut self, block: B) -> Result<(), Error>
+    where
+        B: Into<Block>
+    {
         use crate::block::Block::*;
         let mut w = &mut self.writer;
-        match block {
+        match block.into() {
             Header(b) => b.format(&mut w),
             LogicalScreenDesc(b) => b.format(&mut w),
             GlobalColorTable(b) => b.format(&mut w),
@@ -49,10 +50,21 @@ impl<W: Write> Encoder<W> {
         }?;
         Ok(())
     }
-    /// Convert into a frame encoder.
-    pub fn into_frame_encoder(self) -> FrameEncoder<W> {
-        FrameEncoder::new(self)
-    }
+}
+
+/// Encoder for writing [Frame]s into a GIF file.
+///
+/// Build with Encoder.[into_frame_enc].
+///
+/// [Frame]: ../block/struct.Frame.html
+/// [into_frame_enc]: ../struct.Encoder.html#method.into_frame_enc
+pub struct FrameEnc<W: Write> {
+    /// Block encoder
+    block_enc: BlockEnc<W>,
+    /// Has preamble been encoded?
+    has_preamble: bool,
+    /// Has trailer been encoded?
+    has_trailer: bool,
 }
 
 impl Header {
@@ -224,7 +236,9 @@ impl ImageData {
 
 /// Block / sub-block writer
 struct BlockWriter<'a, W: Write> {
+    /// Buffered writer
     writer: &'a mut BufWriter<W>,
+    /// Block buffer
     buf: Vec<u8>,
 }
 
@@ -271,71 +285,146 @@ impl Trailer {
     }
 }
 
-impl<W: Write> FrameEncoder<W> {
+impl<W: Write> FrameEnc<W> {
     /// Create a new GIF frame encoder.
-    fn new(encoder: Encoder<W>) -> Self {
-        let has_preamble = false;
-        let has_trailer = false;
-        FrameEncoder {
-            encoder,
-            has_preamble,
-            has_trailer,
+    pub(crate) fn new(block_enc: BlockEnc<W>) -> Self {
+        FrameEnc {
+            block_enc,
+            has_preamble: false,
+            has_trailer: false,
         }
     }
     /// Encode the GIF preamble blocks.
     ///
-    /// Must be called only once, before
-    /// [encode_frame](struct.FrameEncoder.html#method.encode_frame).
+    /// Must be called only once, before [encode_frame].
+    ///
+    /// [encode_frame]: struct.FrameEnc.html#method.encode_frame
     pub fn encode_preamble(
         &mut self,
         preamble: &Preamble,
-    ) -> Result<(), EncodeError> {
+    ) -> Result<(), Error> {
         if self.has_preamble {
-            return Err(EncodeError::InvalidBlockSequence);
+            return Err(Error::InvalidBlockSequence);
         }
-        self.encoder.encode(&preamble.header.clone().into())?;
-        self.encoder
-            .encode(&preamble.logical_screen_desc.clone().into())?;
+        self.block_enc.encode(preamble.header.clone())?;
+        self.block_enc.encode(preamble.logical_screen_desc.clone())?;
         if let Some(tbl) = &preamble.global_color_table {
-            self.encoder.encode(&tbl.clone().into())?;
+            self.block_enc.encode(tbl.clone())?;
         }
         if let Some(cnt) = &preamble.loop_count_ext {
-            self.encoder.encode(&cnt.clone().into())?;
+            self.block_enc.encode(cnt.clone())?;
         }
         for comment in &preamble.comments {
-            self.encoder.encode(&comment.clone().into())?;
+            self.block_enc.encode(comment.clone())?;
         }
         self.has_preamble = true;
         Ok(())
     }
     /// Encode one `Frame` of a GIF file.
     ///
-    /// Must be called after
-    /// [encode_preamble](struct.FrameEncoder.html#method.encode_preamble).
-    pub fn encode_frame(&mut self, frame: &Frame) -> Result<(), EncodeError> {
+    /// Must be called after [encode_preamble].
+    ///
+    /// [encode_preamble]: struct.FrameEnc.html#method.encode_preamble
+    pub fn encode_frame(&mut self, frame: &Frame) -> Result<(), Error> {
         if self.has_trailer || !self.has_preamble {
-            return Err(EncodeError::InvalidBlockSequence);
+            return Err(Error::InvalidBlockSequence);
         }
         if let Some(ctrl) = &frame.graphic_control_ext {
-            self.encoder.encode(&ctrl.clone().into())?;
+            self.block_enc.encode(ctrl.clone())?;
         }
-        self.encoder.encode(&frame.image_desc.clone().into())?;
+        self.block_enc.encode(frame.image_desc.clone())?;
         if let Some(tbl) = &frame.local_color_table {
-            self.encoder.encode(&tbl.clone().into())?;
+            self.block_enc.encode(tbl.clone())?;
         }
-        self.encoder.encode(&frame.image_data.clone().into())?;
+        self.block_enc.encode(frame.image_data.clone())?;
         Ok(())
     }
-    /// Encode the [Trailer](block/struct.Trailer.html) of a GIF file.
+    /// Encode the [Trailer] of a GIF file.
     ///
     /// Must be called last, after all `Frame`s have been encoded with
-    /// [encode_frame](struct.FrameEncoder.html#method.encode_frame).
-    pub fn encode_trailer(&mut self) -> Result<(), EncodeError> {
+    /// [encode_frame].
+    ///
+    /// [encode_frame]: struct.FrameEnc.html#method.encode_frame
+    /// [Trailer]: block/struct.Trailer.html
+    pub fn encode_trailer(&mut self) -> Result<(), Error> {
         if self.has_trailer || !self.has_preamble {
-            return Err(EncodeError::InvalidBlockSequence);
+            return Err(Error::InvalidBlockSequence);
         }
-        self.encoder.encode(&Trailer::default().into())?;
+        self.block_enc.encode(Trailer::default())?;
         self.has_trailer = true;
         Ok(())
     }
+}
+
+/// Encoder for writing `Raster`s into a GIF file.
+///
+/// All `Raster`s must have the same dimensions.
+pub struct RasterEnc<W: Write> {
+    /// Frame encoder
+    frame_enc: FrameEnc<W>,
+    /// Preamble blocks
+    preamble: Option<Preamble>,
+}
+
+impl<W: Write> Drop for RasterEnc<W> {
+    fn drop(&mut self) {
+        let _ = self.frame_enc.encode_trailer();
+    }
+}
+
+impl<W: Write> RasterEnc<W> {
+    /// Create a new GIF raster encoder.
+    pub(crate) fn new(frame_enc: FrameEnc<W>) -> Self {
+        RasterEnc {
+            frame_enc,
+            preamble: None,
+        }
+    }
+    /// Encode one `Raster` to a GIF file.
+    pub fn encode_raster(&mut self, raster: &Raster<Gray8>,
+        palette: Palette<Rgb8>) -> Result<(), Error>
+    {
+        let width = raster.width().try_into()?;
+        let height = raster.height().try_into()?;
+        let image_desc = ImageDesc::default()
+            .with_width(width)
+            .with_height(height);
+        let mut image_data = ImageData::new((width * height).into());
+        image_data.add_data(raster.as_u8_slice());
+        if let Some(preamble) = &self.preamble {
+            if preamble.screen_width() != width
+                || preamble.screen_height() != height
+            {
+                return Err(Error::InvalidRasterDimensions);
+            }
+            todo!("add local color table");
+        } else {
+            let preamble = make_preamble(width, height, palette);
+            self.frame_enc.encode_preamble(&preamble)?;
+            self.preamble = Some(preamble);
+        }
+        let mut control = GraphicControl::default();
+        control.set_delay_time_cs(10); // TODO: add delay setting
+        let frame = Frame::new(Some(control), image_desc, None, image_data);
+        self.frame_enc.encode_frame(&frame)
+    }
+}
+
+/// Make the preamble blocks
+fn make_preamble(w: u16, h: u16, palette: Palette<Rgb8>) -> Preamble {
+    let tbl_cfg = ColorTableConfig::new(ColorTableExistence::Present,
+        ColorTableOrdering::NotSorted, palette.len() as u16);
+    let desc = LogicalScreenDesc::default()
+        .with_screen_width(w)
+        .with_screen_height(h)
+        .with_color_table_config(&tbl_cfg);
+    let mut pal = palette.as_u8_slice().to_vec();
+    while pal.len() < tbl_cfg.size_bytes() {
+        pal.push(0);
+    }
+    let table = GlobalColorTable::with_colors(&pal[..]);
+    let mut preamble = Preamble::default();
+    preamble.logical_screen_desc = desc;
+    preamble.global_color_table = Some(table);
+    preamble
 }

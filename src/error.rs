@@ -1,15 +1,18 @@
 // error.rs
 //
-// Copyright (c) 2019  Douglas Lau
+// Copyright (c) 2019-2020  Douglas Lau
 //
 use std::fmt;
 use std::io;
+use std::num::TryFromIntError;
 
-/// Errors encountered while decoding a GIF file.
+/// Errors encountered while decoding or encoding
 #[derive(Debug)]
-pub enum DecodeError {
+pub enum Error {
     /// A wrapped I/O error.
     Io(io::Error),
+    /// Integer out of bounds.
+    TryFromInt(TryFromIntError),
     /// [Header](block/struct.Header.html) block malformed or missing.
     MalformedHeader,
     /// GIF version not supported (87a or 89a only).
@@ -36,61 +39,38 @@ pub enum DecodeError {
     MissingColorTable,
     /// Invalid color index in a frame.
     InvalidColorIndex,
+    /// Invalid Raster dimensions
+    InvalidRasterDimensions,
 }
 
-impl fmt::Display for DecodeError {
+impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DecodeError::Io(err) => err.fmt(fmt),
+            Error::Io(err) => err.fmt(fmt),
+            Error::TryFromInt(err) => err.fmt(fmt),
             _ => fmt::Debug::fmt(self, fmt),
         }
     }
 }
 
-impl std::error::Error for DecodeError {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
-            DecodeError::Io(ref err) => Some(err),
+            Error::Io(ref err) => Some(err),
+            Error::TryFromInt(ref err) => Some(err),
             _ => None,
         }
     }
 }
 
-impl From<io::Error> for DecodeError {
-    fn from(e: io::Error) -> Self {
-        DecodeError::Io(e)
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Error::Io(err)
     }
 }
 
-/// Errors encountered while encoding a GIF file.
-#[derive(Debug)]
-pub enum EncodeError {
-    /// A wrapped I/O error.
-    Io(io::Error),
-    /// [Block](block/enum.Block.html)s arranged in invalid sequence.
-    InvalidBlockSequence,
-}
-
-impl fmt::Display for EncodeError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            EncodeError::Io(err) => err.fmt(fmt),
-            _ => fmt::Debug::fmt(self, fmt),
-        }
-    }
-}
-
-impl std::error::Error for EncodeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match *self {
-            EncodeError::Io(ref err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl From<io::Error> for EncodeError {
-    fn from(e: io::Error) -> Self {
-        EncodeError::Io(e)
+impl From<TryFromIntError> for Error {
+    fn from(err: TryFromIntError) -> Self {
+        Error::TryFromInt(err)
     }
 }

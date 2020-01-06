@@ -1,3 +1,4 @@
+// Block encoding example
 use gift::block::*;
 use gift::*;
 use std::error::Error;
@@ -19,25 +20,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         0, 1, 1, 0,
         1, 0, 0, 1,
     ]);
-    let mut enc = Encoder::new(&mut f);
-    enc.encode(&Header::with_version(*b"89a").into())?;
-    enc.encode(
-        &LogicalScreenDesc::default()
+    let mut blocks = Encoder::new(&mut f).into_block_enc();
+    blocks.encode(Header::with_version(*b"89a"))?;
+    blocks.encode(
+        LogicalScreenDesc::default()
             .with_screen_width(4)
             .with_screen_height(4)
             .with_color_table_config(&g_tbl)
-            .with_background_color_idx(1)
-            .into(),
+            .with_background_color_idx(1),
     )?;
-    enc.encode(&GlobalColorTable::with_colors(&colors).into())?;
-    enc.encode(
-        &ImageDesc::default()
+    blocks.encode(GlobalColorTable::with_colors(&colors))?;
+    blocks.encode(
+        ImageDesc::default()
             .with_width(4)
             .with_height(4)
-            .with_color_table_config(&l_tbl)
-            .into(),
+            .with_color_table_config(&l_tbl),
     )?;
-    enc.encode(&image.into())?;
-    enc.encode(&Trailer::default().into())?;
+    blocks.encode(image)?;
+    blocks.encode(Trailer::default())?;
     Ok(())
 }
