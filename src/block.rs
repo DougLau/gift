@@ -23,7 +23,7 @@
 const CHANNELS: usize = 3;
 
 /// Configuration setting indicating the presence or absence of a color table
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorTableExistence {
     /// Color table is absent
     Absent,
@@ -32,7 +32,7 @@ pub enum ColorTableExistence {
 }
 
 /// Configuration setting indicating whether the color table is ordered
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorTableOrdering {
     /// Color table not sorted
     NotSorted,
@@ -41,7 +41,7 @@ pub enum ColorTableOrdering {
 }
 
 /// A color table configuration defines the size and ordering of a color table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ColorTableConfig {
     /// Does the table exist?
     existence: ColorTableExistence,
@@ -111,7 +111,7 @@ impl ColorTableConfig {
 }
 
 /// Method to dispose of a frame in an animation
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisposalMethod {
     /// No disposal specified
     NoAction,
@@ -158,7 +158,7 @@ impl From<DisposalMethod> for u8 {
 }
 
 /// Codes for each type of block
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BlockCode {
     /// Header block code (signature / magic)
     Header_,
@@ -215,7 +215,7 @@ impl BlockCode {
 }
 
 /// Extension block codes
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ExtensionCode {
     /// Plain text extension code
     PlainText_,
@@ -258,7 +258,7 @@ impl From<ExtensionCode> for u8 {
 /// The header contains the
 /// [magic](https://en.wikipedia.org/wiki/File_format#Magic_number)
 /// string "GIF", followed by a version number.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Header {
     version: [u8; 3],
 }
@@ -283,7 +283,7 @@ impl Header {
 
 /// The logical screen descriptor contains properties which apply to all frames
 /// in the file.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct LogicalScreenDesc {
     /// Pixel width of logical screen
     screen_width: u16,
@@ -446,7 +446,7 @@ impl PlainText {
 
 /// The graphic control extension block contains animation parameters for one
 /// frame.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct GraphicControl {
     /// Bit flags
     flags: u8,
@@ -632,7 +632,7 @@ impl Unknown {
 }
 
 /// The image descriptor block contains properties which apply to one frame.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ImageDesc {
     /// Left position relative to logical screen
     left: u16,
@@ -850,7 +850,7 @@ fn high_bit(value: u16) -> u8 {
 }
 
 /// The trailer block indicates the end of a GIF file.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Trailer {}
 
 /// A block within a GIF file.
