@@ -5,7 +5,7 @@
 //! GIF file encoding
 use crate::block::*;
 use crate::Error;
-use pix::{Gray8, Palette, Raster, Rgb8};
+use pix::{Gray8, Format, Palette, Raster, Rgb8};
 use std::convert::TryInto;
 use std::io::{self, BufWriter, Write};
 
@@ -364,6 +364,8 @@ pub struct RasterEnc<W: Write> {
     frame_enc: FrameEnc<W>,
     /// Preamble blocks
     preamble: Option<Preamble>,
+    /// Graphic control
+    control: Option<GraphicControl>,
 }
 
 impl<W: Write> Drop for RasterEnc<W> {
@@ -378,10 +380,17 @@ impl<W: Write> RasterEnc<W> {
         RasterEnc {
             frame_enc,
             preamble: None,
+            control: None,
         }
     }
-    /// Encode one `Raster` to a GIF file.
-    pub fn encode_raster(&mut self, raster: &Raster<Gray8>,
+    /// Set the frame delay time (centiseconds)
+    pub fn set_delay_time_cs(&mut self, delay_time_cs: u16) {
+        let mut control = self.control.unwrap_or_default();
+        control.set_delay_time_cs(delay_time_cs);
+        self.control = Some(control);
+    }
+    /// Encode an indexed `Raster` to a GIF file.
+    pub fn encode_indexed_raster(&mut self, raster: &Raster<Gray8>,
         palette: Palette<Rgb8>) -> Result<(), Error>
     {
         let width = raster.width().try_into()?;
@@ -403,10 +412,14 @@ impl<W: Write> RasterEnc<W> {
             self.frame_enc.encode_preamble(&preamble)?;
             self.preamble = Some(preamble);
         }
-        let mut control = GraphicControl::default();
-        control.set_delay_time_cs(10); // TODO: add delay setting
-        let frame = Frame::new(Some(control), image_desc, None, image_data);
+        let frame = Frame::new(self.control, image_desc, None, image_data);
         self.frame_enc.encode_frame(&frame)
+    }
+    /// Encode one `Raster` to a GIF file.
+    pub fn encode_raster<F: Format>(&mut self, _raster: &Raster<F>)
+        -> Result<(), Error>
+    {
+        todo!("convert raster to indexed raster");
     }
 }
 
