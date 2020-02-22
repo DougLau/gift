@@ -810,16 +810,18 @@ impl ImageData {
     /// Add data to the image
     pub fn add_data(&mut self, data: &[u8]) {
         let rem = self.data.capacity() - self.data.len();
-        let fits = data.len() <= rem;
-        if fits {
-            self.data.extend_from_slice(data);
-        } else {
-            self.data.extend_from_slice(&data[..rem]);
+        let data = if data.len() > rem {
             warn!("Extra image data: {:?}", &data[rem..]);
-        }
-        if let Some(max_index) = self.data.iter().max() {
+            &data[..rem]
+        } else {
+            data
+        };
+        self.data.extend_from_slice(data);
+        if let Some(max_index) = data.iter().max() {
             let m = high_bit(u16::from(*max_index).next_power_of_two());
-            self.set_min_code_size(m);
+            if m > self.min_code_size() {
+                self.set_min_code_size(m);
+            }
         }
     }
     /// Set the minimum code size
