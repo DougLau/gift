@@ -818,7 +818,7 @@ impl ImageData {
         };
         self.data.extend_from_slice(data);
         if let Some(max_index) = data.iter().max() {
-            let m = high_bit(u16::from(*max_index).next_power_of_two());
+            let m = next_high_bit(*max_index);
             if m > self.min_code_size() {
                 self.set_min_code_size(m);
             }
@@ -842,13 +842,8 @@ impl ImageData {
 }
 
 /// Get the high bit of a value
-fn high_bit(value: u16) -> u8 {
-    for bit in 0..16 {
-        if (value >> bit) == 1 {
-            return bit;
-        }
-    }
-    0
+fn next_high_bit(value: u8) -> u8 {
+    u32::from(value).next_power_of_two().trailing_zeros() as u8
 }
 
 /// The trailer block indicates the end of a GIF file.
@@ -1133,13 +1128,13 @@ mod test {
 
     #[test]
     fn high_bits() {
-        assert_eq!(high_bit(2_u16.next_power_of_two()), 1);
-        assert_eq!(high_bit(3_u16.next_power_of_two()), 2);
-        assert_eq!(high_bit(4_u16.next_power_of_two()), 2);
-        assert_eq!(high_bit(5_u16.next_power_of_two()), 3);
-        assert_eq!(high_bit(7_u16.next_power_of_two()), 3);
-        assert_eq!(high_bit(8_u16.next_power_of_two()), 3);
-        assert_eq!(high_bit(9_u16.next_power_of_two()), 4);
-        assert_eq!(high_bit(16_u16.next_power_of_two()), 4);
+        assert_eq!(next_high_bit(2), 1);
+        assert_eq!(next_high_bit(3), 2);
+        assert_eq!(next_high_bit(4), 2);
+        assert_eq!(next_high_bit(5), 3);
+        assert_eq!(next_high_bit(7), 3);
+        assert_eq!(next_high_bit(8), 3);
+        assert_eq!(next_high_bit(9), 4);
+        assert_eq!(next_high_bit(16), 4);
     }
 }
