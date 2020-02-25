@@ -22,9 +22,16 @@ clap = { version = "2.33", optional = true }
 env_logger = { version = "0.7", optional = true }
 termcolor = { version = "1", optional = true }
 
+[dev-dependencies]
+bencher = "0.1"
+
 [features]
 cmd = ["clap", "env_logger", "termcolor"]
 
 [[bin]]
 name = "gift"
 required-features = ["cmd"]
+
+[[bench]]
+name = "decode"
+harness = false
