@@ -7,7 +7,7 @@ use crate::block::*;
 use crate::Error;
 use pix::{Gray8, Format, Palette, Raster, Rgb8};
 use std::convert::TryInto;
-use std::io::{self, BufWriter, Write};
+use std::io::{self, Write};
 
 /// Encoder for writing [Block]s into a GIF file.
 ///
@@ -17,12 +17,12 @@ use std::io::{self, BufWriter, Write};
 /// [into_block_enc]: ../struct.Encoder.html#method.into_block_enc
 pub struct BlockEnc<W: Write> {
     /// Writer for output data
-    writer: BufWriter<W>,
+    writer: W,
 }
 
 impl<W: Write> BlockEnc<W> {
     /// Create a new GIF encoder.
-    pub(crate) fn new(writer: BufWriter<W>) -> Self {
+    pub(crate) fn new(writer: W) -> Self {
         BlockEnc {
             writer
         }
@@ -69,7 +69,7 @@ pub struct FrameEnc<W: Write> {
 
 impl Header {
     /// Format a header block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(b"GIF")?;
         w.write_all(&self.version())
     }
@@ -77,7 +77,7 @@ impl Header {
 
 impl LogicalScreenDesc {
     /// Format a logical screen desc block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         let mut buf = Vec::with_capacity(7);
         let width = self.screen_width();
         buf.push((width >> 0) as u8);
@@ -94,14 +94,14 @@ impl LogicalScreenDesc {
 
 impl GlobalColorTable {
     /// Format a global color table block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(self.colors())
     }
 }
 
 impl PlainText {
     /// Format a plain text extension block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::PlainText_.into()])?;
         for b in self.sub_blocks() {
@@ -116,7 +116,7 @@ impl PlainText {
 
 impl GraphicControl {
     /// Format a graphic control extension block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         let mut buf = Vec::with_capacity(7);
         buf.push(ExtensionCode::GraphicControl_.into());
@@ -133,7 +133,7 @@ impl GraphicControl {
 
 impl Comment {
     /// Format a comment extension block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Comment_.into()])?;
         for c in self.comments() {
@@ -148,7 +148,7 @@ impl Comment {
 
 impl Application {
     /// Format an application extension block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Application_.into()])?;
         for c in self.app_data() {
@@ -163,7 +163,7 @@ impl Application {
 
 impl Unknown {
     /// Format an unknown extension block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(self.ext_id())?;
         for c in self.sub_blocks() {
@@ -178,7 +178,7 @@ impl Unknown {
 
 impl ImageDesc {
     /// Format an image desc block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::ImageDesc_.signature())?;
         let mut buf = Vec::with_capacity(9);
         let left = self.left();
@@ -200,23 +200,20 @@ impl ImageDesc {
 
 impl LocalColorTable {
     /// Format a local color table block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(self.colors())
     }
 }
 
 impl ImageData {
     /// Format an image data block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(&[self.min_code_size()])?;
         self.format_block(w)?;
         w.write_all(&[0])
     }
     /// Format the entire "block" (including sub-blocks)
-    fn format_block<W: Write>(
-        &self,
-        mut w: &mut BufWriter<W>,
-    ) -> io::Result<()> {
+    fn format_block<W: Write>(&self, mut w: &mut W) -> io::Result<()> {
         let mut bw = BlockWriter::new(&mut w);
         self.format_data(&mut bw)?;
         bw.flush()
@@ -237,14 +234,14 @@ impl ImageData {
 /// Block / sub-block writer
 struct BlockWriter<'a, W: Write> {
     /// Buffered writer
-    writer: &'a mut BufWriter<W>,
+    writer: &'a mut W,
     /// Block buffer
     buf: Vec<u8>,
 }
 
 impl<'a, W: Write> BlockWriter<'a, W> {
     /// Create a new block writer
-    fn new(writer: &'a mut BufWriter<W>) -> Self {
+    fn new(writer: &'a mut W) -> Self {
         let buf = Vec::with_capacity(256);
         BlockWriter { writer, buf }
     }
@@ -258,7 +255,7 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
         self.buf.extend_from_slice(&buf[..consumed]);
         if self.buf.len() == 0xFF {
             // Technically, we're only supposed to make one attempt to write to
-            // the wrapped BufWriter.  Since we're adding the 0xFF length
+            // the wrapped writer.  Since we're adding the 0xFF length
             // at the beginning, we can't allow writes to be split up.
             self.writer.write_all(&[0xFF])?;
             self.writer.write_all(&self.buf)?;
@@ -280,7 +277,7 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
 
 impl Trailer {
     /// Format a trailer block
-    fn format<W: Write>(&self, w: &mut BufWriter<W>) -> io::Result<()> {
+    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Trailer_.signature())
     }
 }

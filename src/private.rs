@@ -43,16 +43,22 @@ use std::io::{BufReader, BufWriter, Read, Write};
 ///
 pub struct Decoder<R: Read> {
     /// Reader for input data
-    reader: BufReader<R>,
+    reader: R,
     /// Maximum image size, in bytes
     max_image_sz: Option<usize>,
 }
 
+impl<R: Read> Decoder<BufReader<R>> {
+    /// Create a new GIF decoder.
+    pub fn new(reader: R) -> Self {
+        Self::new_unbuffered(BufReader::new(reader))
+    }
+}
 impl<R: Read> Decoder<R> {
-    /// Create a new Decoder
-    pub fn new(r: R) -> Self {
+    /// Create a new unbuffered GIF decoder.
+    pub fn new_unbuffered(reader: R) -> Self {
         Decoder {
-            reader: BufReader::new(r),
+            reader,
             max_image_sz: Some(1 << 25),
         }
     }
@@ -99,14 +105,19 @@ impl<R: Read> IntoIterator for Decoder<R> {
 /// [into_raster_enc]: struct.Encoder.html#method.into_raster_enc
 pub struct Encoder<W: Write> {
     /// Writer for output data
-    writer: BufWriter<W>,
+    writer: W,
 }
-
-impl<W: Write> Encoder<W> {
+impl<W: Write> Encoder<BufWriter<W>> {
     /// Create a new GIF encoder.
-    pub fn new(w: W) -> Self {
+    pub fn new(writer: W) -> Self {
+        Self::new_unbuffered(BufWriter::new(writer))
+    }
+}
+impl<W: Write> Encoder<W> {
+    /// Create a new unbuffered GIF encoder.
+    pub fn new_unbuffered(writer: W) -> Self {
         Encoder {
-            writer: BufWriter::new(w),
+            writer,
         }
     }
     /// Convert into a block encoder.
