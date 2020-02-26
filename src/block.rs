@@ -817,8 +817,8 @@ impl ImageData {
             data
         };
         self.data.extend_from_slice(data);
-        if let Some(max_index) = data.iter().max() {
-            let m = next_high_bit(*max_index);
+        if let Some(max_index) = data.iter().copied().max() {
+            let m = next_high_bit(max_index);
             if m > self.min_code_size() {
                 self.set_min_code_size(m);
             }
