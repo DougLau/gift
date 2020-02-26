@@ -6,7 +6,7 @@
 use crate::block::*;
 use crate::error::Error;
 use pix::{Raster, RasterBuilder, Region, Rgba8};
-use std::io::{BufReader, ErrorKind, Read};
+use std::io::{ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
 const BUF_SZ: usize = 1024;
@@ -43,7 +43,7 @@ const BUF_SZ: usize = 1024;
 ///
 pub struct Blocks<R: Read> {
     /// Buffered reader
-    reader: BufReader<R>,
+    reader: R,
     /// Maximum image size in bytes
     max_image_sz: Option<usize>,
     /// Data buffer
@@ -77,7 +77,7 @@ impl<R: Read> Iterator for Blocks<R> {
 
 impl<R: Read> Blocks<R> {
     /// Create a new block iterator
-    pub(crate) fn new(reader: BufReader<R>, max_image_sz: Option<usize>)
+    pub(crate) fn new(reader: R, max_image_sz: Option<usize>)
         -> Self
     {
         use self::BlockCode::Header_;
