@@ -1,4 +1,6 @@
 ## [Unreleased]
+
+## [0.4.0] - 2020-02-26
 ### Added
 * Encoder::into_block_enc()
 * Encoder::into_frame_enc()
