@@ -2,6 +2,9 @@
 
 A Rust library for encoding and decoding GIF images.
 
+## Documentation
+[https://docs.rs/gift](https://docs.rs/gift)
+
 ## Decoding example
 
 ```rust
