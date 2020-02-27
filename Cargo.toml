@@ -4,12 +4,10 @@ version = "0.4.0"
 authors = ["Doug Lau <doug.p.lau@gmail.com>"]
 description = "A library for reading and writing GIF images"
 license = "MIT OR Apache-2.0"
-documentation = "https://docs.rs/gift"
-homepage = "https://github.com/DougLau/gift"
 repository = "https://github.com/DougLau/gift"
 readme = "README.md"
 keywords = ["gif", "image"]
-categories = ["encoding"]
+categories = ["multimedia", "encoding"]
 edition = "2018"
 
 [dependencies]

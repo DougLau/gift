@@ -610,10 +610,10 @@ pub struct Unknown {
 impl Unknown {
     /// Get the extension ID
     pub fn ext_id(&self) -> &[u8] {
-        if self.sub_blocks.len() > 0 {
-            &self.sub_blocks[0]
-        } else {
+        if self.sub_blocks.is_empty() {
             &[]
+        } else {
+            &self.sub_blocks[0]
         }
     }
     /// Add a sub-block
@@ -623,10 +623,10 @@ impl Unknown {
     }
     /// Get the sub-blocks
     pub fn sub_blocks(&self) -> &[Vec<u8>] {
-        if self.sub_blocks.len() > 0 {
-            &self.sub_blocks[1..]
-        } else {
+        if self.sub_blocks.is_empty() {
             &[]
+        } else {
+            &self.sub_blocks[1..]
         }
     }
 }
