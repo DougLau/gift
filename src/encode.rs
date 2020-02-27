@@ -78,17 +78,17 @@ impl Header {
 impl LogicalScreenDesc {
     /// Format a logical screen desc block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
-        let mut buf = Vec::with_capacity(7);
         let width = self.screen_width();
-        buf.push((width >> 0) as u8);
-        buf.push((width >> 8) as u8);
         let height = self.screen_height();
-        buf.push((height >> 0) as u8);
-        buf.push((height >> 8) as u8);
-        buf.push(self.flags());
-        buf.push(self.background_color_idx());
-        buf.push(self.pixel_aspect_ratio());
-        w.write_all(&buf)
+        w.write_all(&[
+            width as u8,
+            (width >> 8) as u8,
+            height as u8,
+            (height >> 8) as u8,
+            self.flags(),
+            self.background_color_idx(),
+            self.pixel_aspect_ratio(),
+        ])
     }
 }
 
@@ -118,16 +118,16 @@ impl GraphicControl {
     /// Format a graphic control extension block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
-        let mut buf = Vec::with_capacity(7);
-        buf.push(ExtensionCode::GraphicControl_.into());
-        buf.push(4); // block size
-        buf.push(self.flags());
         let delay = self.delay_time_cs();
-        buf.push((delay >> 0) as u8);
-        buf.push((delay >> 8) as u8);
-        buf.push(self.transparent_color_idx());
-        buf.push(0); // block size
-        w.write_all(&buf)
+        w.write_all(&[
+            ExtensionCode::GraphicControl_.into(),
+            4, // block size
+            self.flags(),
+            delay as u8,
+            (delay >> 8) as u8,
+            self.transparent_color_idx(),
+            0, // block size
+        ])
     }
 }
 
@@ -180,21 +180,21 @@ impl ImageDesc {
     /// Format an image desc block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::ImageDesc_.signature())?;
-        let mut buf = Vec::with_capacity(9);
         let left = self.left();
-        buf.push((left >> 0) as u8);
-        buf.push((left >> 8) as u8);
         let top = self.top();
-        buf.push((top >> 0) as u8);
-        buf.push((top >> 8) as u8);
         let width = self.width();
-        buf.push((width >> 0) as u8);
-        buf.push((width >> 8) as u8);
         let height = self.height();
-        buf.push((height >> 0) as u8);
-        buf.push((height >> 8) as u8);
-        buf.push(self.flags());
-        w.write_all(&buf)
+        w.write_all(&[
+            left as u8,
+            (left >> 8) as u8,
+            top as u8,
+            (top >> 8) as u8,
+            width as u8,
+            (width >> 8) as u8,
+            height as u8,
+            (height >> 8) as u8,
+            self.flags(),
+        ])
     }
 }
 
