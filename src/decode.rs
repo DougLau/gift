@@ -661,7 +661,7 @@ impl<R: Read> Iterator for Rasters<R> {
     type Item = Result<Raster<Rgba8>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let None = self.raster {
+        if self.raster.is_none() {
             if let Err(e) = self.make_raster() {
                 return Some(Err(e));
             }
