@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [0.5.0] - 2020-03-28
+### Changed
+* Updated pix dependency to 0.10
+* Implemented some micro-optimizations
+
 ## [0.4.0] - 2020-02-26
 ### Added
 * Encoder::into_block_enc()
