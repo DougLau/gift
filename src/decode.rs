@@ -5,7 +5,7 @@
 //! GIF file decoding
 use crate::block::*;
 use crate::error::Error;
-use pix::{Raster, RasterBuilder, Region, Rgba8};
+use pix::{Raster, RasterBuilder, Region, SRgba8};
 use std::io::{ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
@@ -653,12 +653,12 @@ pub struct Rasters<R: Read> {
     /// Global color table block
     global_color_table: Option<GlobalColorTable>,
     /// Current raster
-    raster: Option<Raster<Rgba8>>, // TODO: parameterize pix trait
+    raster: Option<Raster<SRgba8>>, // TODO: parameterize pix trait
 }
 
 impl<R: Read> Iterator for Rasters<R> {
     // TODO: need delay time (and color table for indexed rasters)
-    type Item = Result<Raster<Rgba8>, Error>;
+    type Item = Result<Raster<SRgba8>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.raster.is_none() {
@@ -696,7 +696,7 @@ impl<R: Read> Rasters<R> {
         }
     }
     /// Get the next raster
-    fn next_raster(&mut self) -> Option<Result<Raster<Rgba8>, Error>> {
+    fn next_raster(&mut self) -> Option<Result<Raster<SRgba8>, Error>> {
         assert!(self.raster.is_some());
         match self.frames.next() {
             Some(Ok(f)) => Some(self.apply_frame(f)),
@@ -705,7 +705,7 @@ impl<R: Read> Rasters<R> {
         }
     }
     /// Apply a frame to the raster
-    fn apply_frame(&mut self, f: Frame) -> Result<Raster<Rgba8>, Error> {
+    fn apply_frame(&mut self, f: Frame) -> Result<Raster<SRgba8>, Error> {
         let r = if let DisposalMethod::Previous = f.disposal_method() {
             let r = self.raster.as_ref().unwrap();
             let mut r = RasterBuilder::new().with_raster(r);
@@ -723,7 +723,7 @@ impl<R: Read> Rasters<R> {
             let h = f.height().into();
             let reg = Region::new(x, y, w, h);
             let rs = self.raster.as_mut().unwrap();
-            rs.set_region(reg, Rgba8::default());
+            rs.set_region(reg, SRgba8::default());
         }
         Ok(r)
     }
@@ -731,7 +731,7 @@ impl<R: Read> Rasters<R> {
 
 /// Update a raster with a new frame
 fn update_raster(
-    r: &mut Raster<Rgba8>,
+    r: &mut Raster<SRgba8>,
     f: &Frame,
     t: &Option<GlobalColorTable>,
 ) -> Result<(), Error> {
@@ -757,8 +757,8 @@ fn update_raster(
                     return Err(Error::InvalidColorIndex);
                 }
                 let p = match trans {
-                    Some(t) if t == idx => Rgba8::default(),
-                    _ => Rgba8::new(clrs[i], clrs[i + 1], clrs[i + 2]),
+                    Some(t) if t == idx => SRgba8::default(),
+                    _ => SRgba8::new(clrs[i], clrs[i + 1], clrs[i + 2], 255),
                 };
                 r.set_pixel(xi, yi, p);
             }
@@ -859,10 +859,10 @@ mod test {
     }
     #[test]
     fn image_1() -> Result<(), Box<dyn Error>> {
-        use pix::Rgba8;
-        let red = Rgba8::new(0xFF, 0x00, 0x00);
-        let blu = Rgba8::new(0x00, 0x00, 0xFF);
-        let wht = Rgba8::new(0xFF, 0xFF, 0xFF);
+        use pix::SRgba8;
+        let red = SRgba8::new(0xFF, 0x00, 0x00, 0xFF);
+        let blu = SRgba8::new(0x00, 0x00, 0xFF, 0xFF);
+        let wht = SRgba8::new(0xFF, 0xFF, 0xFF, 0xFF);
         let image = &[
             red, red, red, red, red, blu, blu, blu, blu, blu,
             red, red, red, red, red, blu, blu, blu, blu, blu,

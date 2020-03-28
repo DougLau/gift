@@ -5,7 +5,7 @@
 //! GIF file encoding
 use crate::block::*;
 use crate::Error;
-use pix::{Gray8, Format, Palette, Raster, Rgb8};
+use pix::{Gray8, Palette, Pixel, Raster};
 use std::convert::TryInto;
 use std::io::{self, Write};
 
@@ -388,7 +388,7 @@ impl<W: Write> RasterEnc<W> {
     }
     /// Encode an indexed `Raster` to a GIF file.
     pub fn encode_indexed_raster(&mut self, raster: &Raster<Gray8>,
-        palette: Palette<Rgb8>) -> Result<(), Error>
+        palette: Palette) -> Result<(), Error>
     {
         let width = raster.width().try_into()?;
         let height = raster.height().try_into()?;
@@ -413,7 +413,7 @@ impl<W: Write> RasterEnc<W> {
         self.frame_enc.encode_frame(&frame)
     }
     /// Encode one `Raster` to a GIF file.
-    pub fn encode_raster<F: Format>(&mut self, _raster: &Raster<F>)
+    pub fn encode_raster<P: Pixel>(&mut self, _raster: &Raster<P>)
         -> Result<(), Error>
     {
         todo!("convert raster to indexed raster");
@@ -421,7 +421,7 @@ impl<W: Write> RasterEnc<W> {
 }
 
 /// Make the preamble blocks
-fn make_preamble(w: u16, h: u16, palette: Palette<Rgb8>) -> Preamble {
+fn make_preamble(w: u16, h: u16, palette: Palette) -> Preamble {
     let tbl_cfg = ColorTableConfig::new(ColorTableExistence::Present,
         ColorTableOrdering::NotSorted, palette.len() as u16);
     let desc = LogicalScreenDesc::default()

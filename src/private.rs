@@ -4,7 +4,7 @@
 //
 //! Private module for top-level items
 use crate::{decode, encode, Error};
-use pix::{Raster, Rgba8};
+use pix::{Raster, SRgba8};
 use std::io::{BufReader, BufWriter, Read, Write};
 
 /// GIF file decoder
@@ -82,7 +82,7 @@ impl<R: Read> Decoder<R> {
 }
 
 impl<R: Read> IntoIterator for Decoder<R> {
-    type Item = Result<Raster<Rgba8>, Error>;
+    type Item = Result<Raster<SRgba8>, Error>;
     type IntoIter = decode::Rasters<R>;
 
     /// Convert into a raster `Iterator`
