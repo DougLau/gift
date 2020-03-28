@@ -6,7 +6,8 @@
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use gift::{
-    block::{DisposalMethod, Frame}, Decoder
+    block::{DisposalMethod, Frame},
+    Decoder,
 };
 use std::error::Error;
 use std::ffi::OsStr;
@@ -39,33 +40,38 @@ fn create_app() -> App<'static, 'static> {
         .setting(AppSettings::GlobalVersion)
         .about("GIF file utility")
         .setting(AppSettings::ArgRequiredElseHelp)
-        .subcommand(SubCommand::with_name("show")
-            .about("Show GIF block table")
-            .arg(Arg::with_name("files")
-                .required(true)
-                .min_values(1)
-                .help("input file(s)")))
-        .subcommand(SubCommand::with_name("unwrap")
-            .about("Unwrap frames from a GIF")
-            .arg(Arg::with_name("file")
-                .required(true)
-                .help("input file")))
-        .subcommand(SubCommand::with_name("wrap")
-            .about("Wrap frames into a GIF")
-            .arg(Arg::with_name("file")
-                .required(true)
-                .help("input file")))
-        .subcommand(SubCommand::with_name("peek")
-            .about("Peek into a GIF")
-            .arg(Arg::with_name("file")
-                .required(true)
-                .help("input file")))
+        .subcommand(
+            SubCommand::with_name("show")
+                .about("Show GIF block table")
+                .arg(
+                    Arg::with_name("files")
+                        .required(true)
+                        .min_values(1)
+                        .help("input file(s)"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("unwrap")
+                .about("Unwrap frames from a GIF")
+                .arg(Arg::with_name("file").required(true).help("input file")),
+        )
+        .subcommand(
+            SubCommand::with_name("wrap")
+                .about("Wrap frames into a GIF")
+                .arg(Arg::with_name("file").required(true).help("input file")),
+        )
+        .subcommand(
+            SubCommand::with_name("peek")
+                .about("Peek into a GIF")
+                .arg(Arg::with_name("file").required(true).help("input file")),
+        )
 }
 
 /// Handle show subcommand
-fn show(out: &mut StandardStream, matches: &ArgMatches)
-    -> Result<(), Box<dyn Error>>
-{
+fn show(
+    out: &mut StandardStream,
+    matches: &ArgMatches,
+) -> Result<(), Box<dyn Error>> {
     let values = matches.values_of_os("files").unwrap();
     for path in values {
         show_file(out, path)?;
@@ -74,9 +80,10 @@ fn show(out: &mut StandardStream, matches: &ArgMatches)
 }
 
 /// Show one GIF file
-fn show_file(out: &mut StandardStream, path: &OsStr)
-    -> Result<(), Box<dyn Error>>
-{
+fn show_file(
+    out: &mut StandardStream,
+    path: &OsStr,
+) -> Result<(), Box<dyn Error>> {
     let mut magenta = ColorSpec::new();
     magenta.set_fg(Some(Color::Magenta));
     let mut red = ColorSpec::new();

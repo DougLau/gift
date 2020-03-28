@@ -77,9 +77,7 @@ impl<R: Read> Iterator for Blocks<R> {
 
 impl<R: Read> Blocks<R> {
     /// Create a new block iterator
-    pub(crate) fn new(reader: R, max_image_sz: Option<usize>)
-        -> Self
-    {
+    pub(crate) fn new(reader: R, max_image_sz: Option<usize>) -> Self {
         use self::BlockCode::Header_;
         Blocks {
             reader,
@@ -93,17 +91,17 @@ impl<R: Read> Blocks<R> {
     }
     /// Examine buffer for block code and size.
     fn examine_buffer(&mut self) -> Result<(BlockCode, usize), Error> {
-        let code = *self.buffer
+        let code = *self
+            .buffer
             .iter()
             .next()
             .ok_or(Error::UnexpectedEndOfFile)?;
-        let bc_sz =
-            self.expected_next
-                .take()
-                .or_else(|| match BlockCode::from_u8(code) {
-                    Some(b) => Some((b, b.size())),
-                    None => None,
-                });
+        let bc_sz = self.expected_next.take().or_else(|| {
+            match BlockCode::from_u8(code) {
+                Some(b) => Some((b, b.size())),
+                None => None,
+            }
+        });
         match bc_sz {
             Some(b) => {
                 self.expected_next = self.expected(b.0);
@@ -208,11 +206,7 @@ impl<R: Read> Blocks<R> {
         }
     }
     /// Parse a block in the buffer
-    fn parse_block(
-        &self,
-        bc: BlockCode,
-        sz: usize,
-    ) -> Result<Block, Error> {
+    fn parse_block(&self, bc: BlockCode, sz: usize) -> Result<Block, Error> {
         use crate::block::BlockCode::*;
         let buf = &self.buffer[..sz];
         Ok(match bc {
@@ -248,10 +242,7 @@ impl<R: Read> Blocks<R> {
         Ok(())
     }
     /// Decode one sub-block
-    fn decode_sub_block(
-        &mut self,
-        block: &mut Block,
-    ) -> Result<bool, Error> {
+    fn decode_sub_block(&mut self, block: &mut Block) -> Result<bool, Error> {
         self.fill_buffer()?;
         let len = self.buffer.len();
         if len > 0 {
@@ -551,10 +542,7 @@ impl<R: Read> Frames<R> {
             || self.local_color_table.is_some()
     }
     /// Handle one block
-    fn handle_block(
-        &mut self,
-        block: Block,
-    ) -> Result<Option<Frame>, Error> {
+    fn handle_block(&mut self, block: Block) -> Result<Option<Frame>, Error> {
         match block {
             Block::Header(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
@@ -773,6 +761,7 @@ fn update_raster(
 mod test {
     use super::super::Decoder;
     use std::error::Error;
+    #[rustfmt::skip]
     const GIF_1: &[u8] = &[
         0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00, 0x0A, 0x00, 0x91, 0x00,
         0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00,
@@ -781,6 +770,7 @@ mod test {
         0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75, 0xEC, 0x95, 0xFA, 0xA8,
         0xDE, 0x60, 0x8C, 0x04, 0x91, 0x4C, 0x01, 0x00, 0x3B,
     ];
+    #[rustfmt::skip]
     const IMAGE_1: &[u8] = &[
         1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
         1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
@@ -796,6 +786,7 @@ mod test {
     #[test]
     fn block_1() -> Result<(), Box<dyn Error>> {
         use crate::block::*;
+        #[rustfmt::skip]
         let colors = &[
             0xFF, 0xFF, 0xFF,
             0xFF, 0x00, 0x00,
@@ -863,6 +854,7 @@ mod test {
         let red = SRgba8::new(0xFF, 0x00, 0x00, 0xFF);
         let blu = SRgba8::new(0x00, 0x00, 0xFF, 0xFF);
         let wht = SRgba8::new(0xFF, 0xFF, 0xFF, 0xFF);
+        #[rustfmt::skip]
         let image = &[
             red, red, red, red, red, blu, blu, blu, blu, blu,
             red, red, red, red, red, blu, blu, blu, blu, blu,

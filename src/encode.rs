@@ -23,14 +23,12 @@ pub struct BlockEnc<W: Write> {
 impl<W: Write> BlockEnc<W> {
     /// Create a new GIF encoder.
     pub(crate) fn new(writer: W) -> Self {
-        BlockEnc {
-            writer
-        }
+        BlockEnc { writer }
     }
     /// Encode one [Block](block/enum.Block.html).
     pub fn encode<B>(&mut self, block: B) -> Result<(), Error>
     where
-        B: Into<Block>
+        B: Into<Block>,
     {
         use crate::block::Block::*;
         let mut w = &mut self.writer;
@@ -304,7 +302,8 @@ impl<W: Write> FrameEnc<W> {
             return Err(Error::InvalidBlockSequence);
         }
         self.block_enc.encode(preamble.header.clone())?;
-        self.block_enc.encode(preamble.logical_screen_desc.clone())?;
+        self.block_enc
+            .encode(preamble.logical_screen_desc.clone())?;
         if let Some(tbl) = &preamble.global_color_table {
             self.block_enc.encode(tbl.clone())?;
         }
@@ -387,14 +386,15 @@ impl<W: Write> RasterEnc<W> {
         self.control = Some(control);
     }
     /// Encode an indexed `Raster` to a GIF file.
-    pub fn encode_indexed_raster(&mut self, raster: &Raster<Gray8>,
-        palette: Palette) -> Result<(), Error>
-    {
+    pub fn encode_indexed_raster(
+        &mut self,
+        raster: &Raster<Gray8>,
+        palette: Palette,
+    ) -> Result<(), Error> {
         let width = raster.width().try_into()?;
         let height = raster.height().try_into()?;
-        let image_desc = ImageDesc::default()
-            .with_width(width)
-            .with_height(height);
+        let image_desc =
+            ImageDesc::default().with_width(width).with_height(height);
         let mut image_data = ImageData::new((width * height).into());
         image_data.add_data(raster.as_u8_slice());
         if let Some(preamble) = &self.preamble {
@@ -413,17 +413,21 @@ impl<W: Write> RasterEnc<W> {
         self.frame_enc.encode_frame(&frame)
     }
     /// Encode one `Raster` to a GIF file.
-    pub fn encode_raster<P: Pixel>(&mut self, _raster: &Raster<P>)
-        -> Result<(), Error>
-    {
+    pub fn encode_raster<P: Pixel>(
+        &mut self,
+        _raster: &Raster<P>,
+    ) -> Result<(), Error> {
         todo!("convert raster to indexed raster");
     }
 }
 
 /// Make the preamble blocks
 fn make_preamble(w: u16, h: u16, palette: Palette) -> Preamble {
-    let tbl_cfg = ColorTableConfig::new(ColorTableExistence::Present,
-        ColorTableOrdering::NotSorted, palette.len() as u16);
+    let tbl_cfg = ColorTableConfig::new(
+        ColorTableExistence::Present,
+        ColorTableOrdering::NotSorted,
+        palette.len() as u16,
+    );
     let desc = LogicalScreenDesc::default()
         .with_screen_width(w)
         .with_screen_height(h)

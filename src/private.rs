@@ -116,9 +116,7 @@ impl<W: Write> Encoder<BufWriter<W>> {
 impl<W: Write> Encoder<W> {
     /// Create a new unbuffered GIF encoder.
     pub fn new_unbuffered(writer: W) -> Self {
-        Encoder {
-            writer,
-        }
+        Encoder { writer }
     }
     /// Convert into a block encoder.
     pub fn into_block_enc(self) -> encode::BlockEnc<W> {
