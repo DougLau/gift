@@ -67,8 +67,9 @@ impl<R: Read> Iterator for Blocks<R> {
             None
         } else {
             let res = self.next_block();
-            if let Ok(Block::Trailer(_)) = res {
-                self.done = true;
+            match res {
+                Ok(Block::Trailer(_)) | Err(_) => self.done = true,
+                _ => (),
             }
             Some(res)
         }
@@ -871,5 +872,34 @@ mod test {
             assert_eq!(r?.as_slice(), image);
         }
         Ok(())
+    }
+    const HEADER: &[u8] = &[
+        0x47, 0x49, 0x46, 0x38, 0x39, 0x60,
+    ];
+    #[test]
+    fn iterator() {
+        use crate::error::Error;
+        let mut dec = Decoder::new(HEADER).into_blocks();
+        match dec.next().unwrap() {
+            Err(Error::UnsupportedVersion(_)) => (),
+            _ => panic!(),
+        }
+        match dec.next() {
+            None => (),
+            _ => panic!(),
+        }
+    }
+    #[test]
+    fn empty() {
+        use crate::error::Error;
+        let mut dec = Decoder::new(std::io::Cursor::new(b"")).into_frames();
+        match dec.next().unwrap() {
+            Err(Error::UnexpectedEndOfFile) => (),
+            _ => panic!(),
+        }
+        match dec.next() {
+            None => (),
+            _ => panic!(),
+        }
     }
 }

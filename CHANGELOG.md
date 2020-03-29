@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+* Iterators now return None after first error
+
 ## [0.5.0] - 2020-03-28
 ### Changed
 * Updated pix dependency to 0.10
