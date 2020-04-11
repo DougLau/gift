@@ -5,7 +5,8 @@
 //! GIF file decoding
 use crate::block::*;
 use crate::error::Error;
-use pix::{Raster, RasterBuilder, Region, SRgba8};
+use pix::{Raster, Region, SRgba8};
+use pix::ops::Src;
 use std::io::{ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
@@ -677,7 +678,7 @@ impl<R: Read> Rasters<R> {
             self.global_color_table = p.global_color_table.take();
             let w = p.screen_width().into();
             let h = p.screen_height().into();
-            self.raster = Some(RasterBuilder::new().with_clear(w, h));
+            self.raster = Some(Raster::with_clear(w, h));
             Ok(())
         } else {
             warn!("Preamble not found!");
@@ -697,13 +698,13 @@ impl<R: Read> Rasters<R> {
     fn apply_frame(&mut self, f: Frame) -> Result<Raster<SRgba8>, Error> {
         let r = if let DisposalMethod::Previous = f.disposal_method() {
             let r = self.raster.as_ref().unwrap();
-            let mut r = RasterBuilder::new().with_raster(r);
+            let mut r = Raster::with_raster(r);
             update_raster(&mut r, &f, &self.global_color_table)?;
             r
         } else {
             let mut r = self.raster.as_mut().unwrap();
             update_raster(&mut r, &f, &self.global_color_table)?;
-            RasterBuilder::new().with_raster(r)
+            Raster::with_raster(r)
         };
         if let DisposalMethod::Background = f.disposal_method() {
             let x = f.left().into();
@@ -712,7 +713,7 @@ impl<R: Read> Rasters<R> {
             let h = f.height().into();
             let reg = Region::new(x, y, w, h);
             let rs = self.raster.as_mut().unwrap();
-            rs.set_region(reg, SRgba8::default());
+            rs.composite_color(reg, SRgba8::default(), Src);
         }
         Ok(r)
     }
@@ -749,7 +750,7 @@ fn update_raster(
                     Some(t) if t == idx => SRgba8::default(),
                     _ => SRgba8::new(clrs[i], clrs[i + 1], clrs[i + 2], 255),
                 };
-                r.set_pixel(xi, yi, p);
+                *r.pixel_mut(xi as i32, yi as i32) = p;
             }
         }
         Ok(())
@@ -869,7 +870,7 @@ mod test {
             blu, blu, blu, blu, blu, red, red, red, red, red,
         ][..];
         for r in Decoder::new(GIF_1) {
-            assert_eq!(r?.as_slice(), image);
+            assert_eq!(r?.pixels(), image);
         }
         Ok(())
     }

@@ -5,7 +5,9 @@
 //! GIF file encoding
 use crate::block::*;
 use crate::Error;
-use pix::{Gray8, Palette, Pixel, Raster};
+use pix::{Gray8, Palette, Raster};
+use pix::clr::Rgb;
+use pix::el::Pixel;
 use std::convert::TryInto;
 use std::io::{self, Write};
 
@@ -432,7 +434,12 @@ fn make_preamble(w: u16, h: u16, palette: Palette) -> Preamble {
         .with_screen_width(w)
         .with_screen_height(h)
         .with_color_table_config(&tbl_cfg);
-    let mut pal = palette.as_u8_slice().to_vec();
+    let mut pal = Vec::<u8>::with_capacity(palette.len() * 3);
+    for c in palette.colors() {
+        pal.push(u8::from(Rgb::red(*c)));
+        pal.push(u8::from(Rgb::green(*c)));
+        pal.push(u8::from(Rgb::blue(*c)));
+    }
     while pal.len() < tbl_cfg.size_bytes() {
         pal.push(0);
     }

@@ -1,6 +1,6 @@
 [package]
 name = "gift"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Doug Lau <doug.p.lau@gmail.com>"]
 description = "A library for reading and writing GIF images"
 license = "MIT OR Apache-2.0"
@@ -14,7 +14,7 @@ include = ["src/**/*", "Cargo.*", "LICENSE-*", "README.md", "CHANGELOG.md", "ben
 [dependencies]
 log = "0.4"
 lzw = "0.10"
-pix = "0.10"
+pix = "0.11"
 
 # NOTE: for cmd only -- library has no optional features
 clap = { version = "2.33", optional = true }
