@@ -6,7 +6,7 @@
 use crate::block::*;
 use crate::Error;
 use pix::{Gray8, Palette, Raster};
-use pix::clr::Rgb;
+use pix::clr::{Gray, Rgb};
 use pix::el::Pixel;
 use std::convert::TryInto;
 use std::io::{self, Write};
@@ -393,12 +393,16 @@ impl<W: Write> RasterEnc<W> {
         raster: &Raster<Gray8>,
         palette: Palette,
     ) -> Result<(), Error> {
+        let mut buf = [0; 1];
         let width = raster.width().try_into()?;
         let height = raster.height().try_into()?;
         let image_desc =
             ImageDesc::default().with_width(width).with_height(height);
         let mut image_data = ImageData::new((width * height).into());
-        image_data.add_data(raster.as_u8_slice());
+        for p in raster.pixels() {
+            buf[0] = u8::from(Gray::value(*p));
+            image_data.add_data(&buf[..]);
+        }
         if let Some(preamble) = &self.preamble {
             if preamble.screen_width() != width
                 || preamble.screen_height() != height
