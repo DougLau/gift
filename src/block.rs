@@ -94,6 +94,10 @@ impl ColorTableConfig {
             ColorTableExistence::Present => self.table_len,
         }
     }
+    /// Check if the table is empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     /// Get the length code (in flag bits)
     fn len_bits(&self) -> u8 {
         let sz = self.table_len;
@@ -276,7 +280,7 @@ impl Header {
         Header { version }
     }
     /// Get the GIF version
-    pub fn version(&self) -> [u8; 3] {
+    pub fn version(self) -> [u8; 3] {
         self.version
     }
 }
@@ -309,7 +313,7 @@ impl LogicalScreenDesc {
         self
     }
     /// Get the screen width
-    pub fn screen_width(&self) -> u16 {
+    pub fn screen_width(self) -> u16 {
         self.screen_width
     }
     /// Set the screen height
@@ -318,7 +322,7 @@ impl LogicalScreenDesc {
         self
     }
     /// Get the screen height
-    pub fn screen_height(&self) -> u16 {
+    pub fn screen_height(self) -> u16 {
         self.screen_height
     }
     /// Set the flags which control the global color table configuration
@@ -327,11 +331,11 @@ impl LogicalScreenDesc {
         self
     }
     /// Get the flags which control the global color table configuration
-    pub fn flags(&self) -> u8 {
+    pub fn flags(self) -> u8 {
         self.flags
     }
     /// Check the descriptor for global color table existence
-    fn color_table_existence(&self) -> ColorTableExistence {
+    fn color_table_existence(self) -> ColorTableExistence {
         if self.flags & Self::COLOR_TABLE_PRESENT != 0 {
             ColorTableExistence::Present
         } else {
@@ -339,11 +343,11 @@ impl LogicalScreenDesc {
         }
     }
     /// Get the color resolution (obsolete GIF feature)
-    pub fn color_resolution(&self) -> u16 {
+    pub fn color_resolution(self) -> u16 {
         2 << ((self.flags & Self::COLOR_RESOLUTION) >> 4 as u16)
     }
     /// Check the descriptor for global color table ordering
-    fn color_table_ordering(&self) -> ColorTableOrdering {
+    fn color_table_ordering(self) -> ColorTableOrdering {
         if self.flags & Self::COLOR_TABLE_ORDERING != 0 {
             ColorTableOrdering::Sorted
         } else {
@@ -351,11 +355,11 @@ impl LogicalScreenDesc {
         }
     }
     /// Check the descriptor for global color table length
-    fn color_table_len(&self) -> usize {
+    fn color_table_len(self) -> usize {
         2 << ((self.flags & Self::COLOR_TABLE_SIZE) as usize)
     }
     /// Get the global color table configuration
-    pub fn color_table_config(&self) -> ColorTableConfig {
+    pub fn color_table_config(self) -> ColorTableConfig {
         let existence = self.color_table_existence();
         let ordering = self.color_table_ordering();
         let table_len = self.color_table_len();
@@ -387,7 +391,7 @@ impl LogicalScreenDesc {
         self
     }
     /// Get the background color index
-    pub fn background_color_idx(&self) -> u8 {
+    pub fn background_color_idx(self) -> u8 {
         self.background_color_idx
     }
     /// Set the pixel aspect ratio (obsolete GIF feature)
@@ -396,7 +400,7 @@ impl LogicalScreenDesc {
         self
     }
     /// Get the pixel aspect ratio (obsolete GIF feature)
-    pub fn pixel_aspect_ratio(&self) -> u8 {
+    pub fn pixel_aspect_ratio(self) -> u8 {
         self.pixel_aspect_ratio
     }
 }
@@ -418,6 +422,10 @@ impl GlobalColorTable {
     /// Get the global color table length (number of entries)
     pub fn len(&self) -> usize {
         self.colors.len() / CHANNELS
+    }
+    /// Check if the table is empty
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty()
     }
     /// Get the color table data
     pub fn colors(&self) -> &[u8] {
@@ -468,11 +476,11 @@ impl GraphicControl {
         self.flags = flags;
     }
     /// Get the graphic control flags
-    pub fn flags(&self) -> u8 {
+    pub fn flags(self) -> u8 {
         self.flags
     }
     /// Get the frame disposal method
-    pub fn disposal_method(&self) -> DisposalMethod {
+    pub fn disposal_method(self) -> DisposalMethod {
         ((self.flags & Self::DISPOSAL_METHOD) >> 2).into()
     }
     /// Set the frame disposal method
@@ -481,7 +489,7 @@ impl GraphicControl {
         self.flags = (self.flags | !Self::DISPOSAL_METHOD) | (d << 2);
     }
     /// Get the user input flag
-    pub fn user_input(&self) -> bool {
+    pub fn user_input(self) -> bool {
         (self.flags & Self::USER_INPUT) != 0
     }
     /// Set the user input flag
@@ -490,7 +498,7 @@ impl GraphicControl {
         self.flags = (self.flags | !Self::USER_INPUT) | u;
     }
     /// Get the frame delay time (centiseconds)
-    pub fn delay_time_cs(&self) -> u16 {
+    pub fn delay_time_cs(self) -> u16 {
         self.delay_time_cs
     }
     /// Set the frame delay time (centiseconds)
@@ -498,7 +506,7 @@ impl GraphicControl {
         self.delay_time_cs = delay_time_cs;
     }
     /// Get the transparent color, if any
-    pub fn transparent_color(&self) -> Option<u8> {
+    pub fn transparent_color(self) -> Option<u8> {
         let t = (self.flags & Self::TRANSPARENT_COLOR) != 0;
         if t {
             Some(self.transparent_color_idx)
@@ -507,7 +515,7 @@ impl GraphicControl {
         }
     }
     /// Get the transparent color index
-    pub fn transparent_color_idx(&self) -> u8 {
+    pub fn transparent_color_idx(self) -> u8 {
         self.transparent_color_idx
     }
     /// Set the transparent color index
@@ -781,6 +789,10 @@ impl LocalColorTable {
     /// Get the local color table length (number of entries)
     pub fn len(&self) -> usize {
         self.colors.len() / CHANNELS
+    }
+    /// Check if the table is empty
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty()
     }
     /// Get the color table data
     pub fn colors(&self) -> &[u8] {

@@ -70,7 +70,7 @@ pub struct FrameEnc<W: Write> {
 
 impl Header {
     /// Format a header block
-    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
+    fn format<W: Write>(self, w: &mut W) -> io::Result<()> {
         w.write_all(b"GIF")?;
         w.write_all(&self.version())
     }
@@ -78,7 +78,7 @@ impl Header {
 
 impl LogicalScreenDesc {
     /// Format a logical screen desc block
-    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
+    fn format<W: Write>(self, w: &mut W) -> io::Result<()> {
         let width = self.screen_width();
         let height = self.screen_height();
         w.write_all(&[
@@ -117,7 +117,7 @@ impl PlainText {
 
 impl GraphicControl {
     /// Format a graphic control extension block
-    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
+    fn format<W: Write>(self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Extension_.signature())?;
         let delay = self.delay_time_cs();
         w.write_all(&[
@@ -278,7 +278,7 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
 
 impl Trailer {
     /// Format a trailer block
-    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
+    fn format<W: Write>(self, w: &mut W) -> io::Result<()> {
         w.write_all(BlockCode::Trailer_.signature())
     }
 }

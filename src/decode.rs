@@ -695,62 +695,62 @@ impl<R: Read> Rasters<R> {
         }
     }
     /// Apply a frame to the raster
-    fn apply_frame(&mut self, f: Frame) -> Result<Raster<SRgba8>, Error> {
-        let r = if let DisposalMethod::Previous = f.disposal_method() {
-            let r = self.raster.as_ref().unwrap();
-            let mut r = Raster::with_raster(r);
-            update_raster(&mut r, &f, &self.global_color_table)?;
-            r
+    fn apply_frame(&mut self, frame: Frame) -> Result<Raster<SRgba8>, Error> {
+        let raster = if let DisposalMethod::Previous = frame.disposal_method() {
+            let raster = self.raster.as_ref().unwrap();
+            let mut raster = Raster::with_raster(raster);
+            update_raster(&mut raster, &frame, &self.global_color_table)?;
+            raster
         } else {
-            let mut r = self.raster.as_mut().unwrap();
-            update_raster(&mut r, &f, &self.global_color_table)?;
-            Raster::with_raster(r)
+            let mut raster = self.raster.as_mut().unwrap();
+            update_raster(&mut raster, &frame, &self.global_color_table)?;
+            Raster::with_raster(raster)
         };
-        if let DisposalMethod::Background = f.disposal_method() {
-            let x = f.left().into();
-            let y = f.top().into();
-            let w = f.width().into();
-            let h = f.height().into();
+        if let DisposalMethod::Background = frame.disposal_method() {
+            let x = frame.left().into();
+            let y = frame.top().into();
+            let w = frame.width().into();
+            let h = frame.height().into();
             let reg = Region::new(x, y, w, h);
             let rs = self.raster.as_mut().unwrap();
             rs.copy_color(reg, SRgba8::default());
         }
-        Ok(r)
+        Ok(raster)
     }
 }
 
 /// Update a raster with a new frame
 fn update_raster(
-    r: &mut Raster<SRgba8>,
-    f: &Frame,
-    t: &Option<GlobalColorTable>,
+    raster: &mut Raster<SRgba8>,
+    frame: &Frame,
+    global_tbl: &Option<GlobalColorTable>,
 ) -> Result<(), Error> {
-    let x: u32 = f.left().into();
-    let y: u32 = f.top().into();
-    let w: u32 = f.width().into();
-    let h: u32 = f.height().into();
-    if x + w <= r.width() && y + h <= r.height() {
-        let clrs = if let Some(c) = &f.local_color_table {
-            c.colors()
-        } else if let Some(c) = t {
-            c.colors()
+    let x: u32 = frame.left().into();
+    let y: u32 = frame.top().into();
+    let width: u32 = frame.width().into();
+    let height: u32 = frame.height().into();
+    if x + width <= raster.width() && y + height <= raster.height() {
+        let clrs = if let Some(tbl) = &frame.local_color_table {
+            tbl.colors()
+        } else if let Some(tbl) = global_tbl {
+            tbl.colors()
         } else {
             return Err(Error::MissingColorTable);
         };
-        let trans = f.transparent_color();
-        for yi in y..y + h {
-            let yr = yi * r.width();
-            for xi in x..x + w {
-                let idx = f.image_data.data()[(yr + xi) as usize];
+        let trans_clr = frame.transparent_color();
+        for yi in y..y + height {
+            let yr = yi * raster.width();
+            for xi in x..x + width {
+                let idx = frame.image_data.data()[(yr + xi) as usize];
                 let i = 3 * idx as usize;
                 if i + 2 > clrs.len() {
                     return Err(Error::InvalidColorIndex);
                 }
-                let p = match trans {
-                    Some(t) if t == idx => SRgba8::default(),
+                let entry = match trans_clr {
+                    Some(trans_idx) if trans_idx == idx => SRgba8::default(),
                     _ => SRgba8::new(clrs[i], clrs[i + 1], clrs[i + 2], 255),
                 };
-                *r.pixel_mut(xi as i32, yi as i32) = p;
+                *raster.pixel_mut(xi as i32, yi as i32) = entry;
             }
         }
         Ok(())
