@@ -5,8 +5,8 @@
 //! GIF file decoding
 use crate::block::*;
 use crate::error::Error;
-use pix::{Raster, Region, SRgba8};
-use pix::ops::Src;
+use pix::rgb::SRgba8;
+use pix::{Raster, Region};
 use std::io::{ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
@@ -713,7 +713,7 @@ impl<R: Read> Rasters<R> {
             let h = f.height().into();
             let reg = Region::new(x, y, w, h);
             let rs = self.raster.as_mut().unwrap();
-            rs.composite_color(reg, SRgba8::default(), Src);
+            rs.copy_color(reg, SRgba8::default());
         }
         Ok(r)
     }
@@ -763,6 +763,7 @@ fn update_raster(
 mod test {
     use super::super::Decoder;
     use std::error::Error;
+
     #[rustfmt::skip]
     const GIF_1: &[u8] = &[
         0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x0A, 0x00, 0x0A, 0x00, 0x91, 0x00,
@@ -772,6 +773,7 @@ mod test {
         0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75, 0xEC, 0x95, 0xFA, 0xA8,
         0xDE, 0x60, 0x8C, 0x04, 0x91, 0x4C, 0x01, 0x00, 0x3B,
     ];
+
     #[rustfmt::skip]
     const IMAGE_1: &[u8] = &[
         1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
@@ -785,6 +787,7 @@ mod test {
         2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
         2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
     ];
+
     #[test]
     fn block_1() -> Result<(), Box<dyn Error>> {
         use crate::block::*;
@@ -843,6 +846,7 @@ mod test {
         }
         Ok(())
     }
+
     #[test]
     fn frame_1() -> Result<(), Box<dyn Error>> {
         for f in Decoder::new(GIF_1).into_frames() {
@@ -850,9 +854,10 @@ mod test {
         }
         Ok(())
     }
+
     #[test]
     fn image_1() -> Result<(), Box<dyn Error>> {
-        use pix::SRgba8;
+        use pix::rgb::SRgba8;
         let red = SRgba8::new(0xFF, 0x00, 0x00, 0xFF);
         let blu = SRgba8::new(0x00, 0x00, 0xFF, 0xFF);
         let wht = SRgba8::new(0xFF, 0xFF, 0xFF, 0xFF);
@@ -874,9 +879,9 @@ mod test {
         }
         Ok(())
     }
-    const HEADER: &[u8] = &[
-        0x47, 0x49, 0x46, 0x38, 0x39, 0x60,
-    ];
+
+    const HEADER: &[u8] = &[0x47, 0x49, 0x46, 0x38, 0x39, 0x60];
+
     #[test]
     fn iterator() {
         use crate::error::Error;
@@ -890,6 +895,7 @@ mod test {
             _ => panic!(),
         }
     }
+
     #[test]
     fn empty() {
         use crate::error::Error;

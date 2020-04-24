@@ -14,7 +14,7 @@ include = ["src/**/*", "Cargo.*", "LICENSE-*", "README.md", "CHANGELOG.md", "ben
 [dependencies]
 log = "0.4"
 lzw = "0.10"
-pix = "0.11"
+pix = "0.12"
 
 # NOTE: for cmd only -- library has no optional features
 clap = { version = "2.33", optional = true }

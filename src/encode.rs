@@ -5,9 +5,10 @@
 //! GIF file encoding
 use crate::block::*;
 use crate::Error;
-use pix::{Gray8, Palette, Raster};
-use pix::clr::{Gray, Rgb};
 use pix::el::Pixel;
+use pix::gray::{Gray, Gray8};
+use pix::rgb::Rgb;
+use pix::{Palette, Raster};
 use std::convert::TryInto;
 use std::io::{self, Write};
 

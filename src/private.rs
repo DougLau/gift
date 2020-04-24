@@ -4,7 +4,8 @@
 //
 //! Private module for top-level items
 use crate::{decode, encode, Error};
-use pix::{Raster, SRgba8};
+use pix::rgb::SRgba8;
+use pix::Raster;
 use std::io::{BufReader, BufWriter, Read, Write};
 
 /// GIF file decoder

@@ -1,6 +1,8 @@
 // Raster encoding example
 use gift::Encoder;
-use pix::{Gray8, Palette, Raster, SRgb8};
+use pix::gray::Gray8;
+use pix::rgb::SRgb8;
+use pix::{Palette, Raster};
 use std::error::Error;
 use std::fs::File;
 
