@@ -4,6 +4,7 @@ version = "0.7.0"
 authors = ["Doug Lau <doug.p.lau@gmail.com>"]
 description = "A library for reading and writing GIF images"
 license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/gift"
 repository = "https://github.com/DougLau/gift"
 readme = "README.md"
 keywords = ["gif", "image"]
