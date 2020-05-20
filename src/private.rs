@@ -63,19 +63,23 @@ impl<R: Read> Decoder<R> {
             max_image_sz: Some(1 << 25),
         }
     }
+
     /// Set the maximum image size (in bytes) to allow for decoding.
     pub fn max_image_sz(mut self, max_image_sz: Option<usize>) -> Self {
         self.max_image_sz = max_image_sz;
         self
     }
+
     /// Convert into a block `Iterator`.
     pub fn into_blocks(self) -> decode::Blocks<R> {
         decode::Blocks::new(self.reader, self.max_image_sz)
     }
+
     /// Convert into a frame `Iterator`.
     pub fn into_frames(self) -> decode::Frames<R> {
         decode::Frames::new(self.into_blocks())
     }
+
     /// Convert into a raster `Iterator`.
     pub fn into_rasters(self) -> decode::Rasters<R> {
         decode::Rasters::new(self.into_frames())
@@ -108,25 +112,30 @@ pub struct Encoder<W: Write> {
     /// Writer for output data
     writer: W,
 }
+
 impl<W: Write> Encoder<BufWriter<W>> {
     /// Create a new GIF encoder.
     pub fn new(writer: W) -> Self {
         Self::new_unbuffered(BufWriter::new(writer))
     }
 }
+
 impl<W: Write> Encoder<W> {
     /// Create a new unbuffered GIF encoder.
     pub fn new_unbuffered(writer: W) -> Self {
         Encoder { writer }
     }
+
     /// Convert into a block encoder.
     pub fn into_block_enc(self) -> encode::BlockEnc<W> {
         encode::BlockEnc::new(self.writer)
     }
+
     /// Convert into a frame encoder.
     pub fn into_frame_enc(self) -> encode::FrameEnc<W> {
         encode::FrameEnc::new(self.into_block_enc())
     }
+
     /// Convert into a raster encoder.
     pub fn into_raster_enc(self) -> encode::RasterEnc<W> {
         encode::RasterEnc::new(self.into_frame_enc())

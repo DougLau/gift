@@ -91,6 +91,7 @@ impl<R: Read> Blocks<R> {
             decoder: None,
         }
     }
+
     /// Examine buffer for block code and size.
     fn examine_buffer(&mut self) -> Result<(BlockCode, usize), Error> {
         let code = *self
@@ -112,6 +113,7 @@ impl<R: Read> Blocks<R> {
             None => Err(Error::InvalidBlockCode),
         }
     }
+
     /// Get next expected block code and size
     fn expected(&self, bc: BlockCode) -> Option<(BlockCode, usize)> {
         use crate::block::BlockCode::*;
@@ -154,6 +156,7 @@ impl<R: Read> Blocks<R> {
             _ => None,
         }
     }
+
     /// Decode the next block (including all sub-blocks).
     fn next_block(&mut self) -> Result<Block, Error> {
         self.fill_buffer()?;
@@ -165,6 +168,7 @@ impl<R: Read> Blocks<R> {
         self.check_block_end(&block)?;
         Ok(block)
     }
+
     /// Check end of block (after sub-blocks)
     fn check_block_end(&mut self, block: &Block) -> Result<(), Error> {
         if let Block::ImageData(b) = block {
@@ -175,6 +179,7 @@ impl<R: Read> Blocks<R> {
         }
         Ok(())
     }
+
     /// Fill the buffer from reader
     fn fill_buffer(&mut self) -> Result<(), Error> {
         let mut len = self.buffer.len();
@@ -190,6 +195,7 @@ impl<R: Read> Blocks<R> {
         self.buffer.resize(len, 0);
         Ok(())
     }
+
     /// Decode one block
     fn decode_block(
         &mut self,
@@ -207,6 +213,7 @@ impl<R: Read> Blocks<R> {
             Err(Error::UnexpectedEndOfFile)
         }
     }
+
     /// Parse a block in the buffer
     fn parse_block(&self, bc: BlockCode, sz: usize) -> Result<Block, Error> {
         use crate::block::BlockCode::*;
@@ -222,6 +229,7 @@ impl<R: Read> Blocks<R> {
             Trailer_ => Trailer::default().into(),
         })
     }
+
     /// Check start of block (before sub-blocks)
     fn check_block_start(&mut self, block: &Block) -> Result<(), Error> {
         match block {
@@ -243,6 +251,7 @@ impl<R: Read> Blocks<R> {
         }
         Ok(())
     }
+
     /// Decode one sub-block
     fn decode_sub_block(&mut self, block: &mut Block) -> Result<bool, Error> {
         self.fill_buffer()?;
@@ -261,6 +270,7 @@ impl<R: Read> Blocks<R> {
         }
         Err(Error::UnexpectedEndOfFile)
     }
+
     /// Parse a sub-block in the buffer
     fn parse_sub_block(
         &mut self,
@@ -280,6 +290,7 @@ impl<R: Read> Blocks<R> {
         }
         Ok(())
     }
+
     /// Decode image data
     fn decode_image_data(
         &mut self,
@@ -441,6 +452,7 @@ impl Unknown {
         b.add_sub_block(&[ext_id]);
         b
     }
+
     /// Parse an Unknown extension block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_sub_block(buf);
@@ -522,6 +534,7 @@ impl<R: Read> Frames<R> {
             local_color_table: None,
         }
     }
+
     /// Read preamble blocks.  These are the blocks at the beginning of the
     /// file, before any frame blocks.
     pub fn preamble(&mut self) -> Result<Option<Preamble>, Error> {
@@ -537,12 +550,14 @@ impl<R: Read> Frames<R> {
         }
         Err(Error::InvalidBlockSequence)
     }
+
     /// Check if any frame blocks exist
     fn has_frame(&self) -> bool {
         self.graphic_control_ext.is_some()
             || self.image_desc.is_some()
             || self.local_color_table.is_some()
     }
+
     /// Handle one block
     fn handle_block(&mut self, block: Block) -> Result<Option<Frame>, Error> {
         match block {
@@ -672,6 +687,7 @@ impl<R: Read> Rasters<R> {
             raster: None,
         }
     }
+
     /// Make the initial raster
     fn make_raster(&mut self) -> Result<(), Error> {
         if let Some(mut p) = self.frames.preamble()? {
@@ -685,6 +701,7 @@ impl<R: Read> Rasters<R> {
             Ok(())
         }
     }
+
     /// Get the next raster
     fn next_raster(&mut self) -> Option<Result<Raster<SRgba8>, Error>> {
         assert!(self.raster.is_some());
@@ -694,6 +711,7 @@ impl<R: Read> Rasters<R> {
             None => None,
         }
     }
+
     /// Apply a frame to the raster
     fn apply_frame(&mut self, frame: Frame) -> Result<Raster<SRgba8>, Error> {
         let raster = if let DisposalMethod::Previous = frame.disposal_method() {

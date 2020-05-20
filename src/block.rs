@@ -79,14 +79,17 @@ impl ColorTableConfig {
             table_len,
         }
     }
+
     /// Get the existence of a color table
     pub fn existence(&self) -> ColorTableExistence {
         self.existence
     }
+
     /// Get the ordering of a color table
     pub fn ordering(&self) -> ColorTableOrdering {
         self.ordering
     }
+
     /// Get the length of a color table (number of entries)
     pub fn len(&self) -> usize {
         match self.existence {
@@ -94,10 +97,12 @@ impl ColorTableConfig {
             ColorTableExistence::Present => self.table_len,
         }
     }
+
     /// Check if the table is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     /// Get the length code (in flag bits)
     fn len_bits(&self) -> u8 {
         let sz = self.table_len;
@@ -108,6 +113,7 @@ impl ColorTableConfig {
         }
         7
     }
+
     /// Get the size of the color table (in bytes)
     pub fn size_bytes(&self) -> usize {
         self.len() * CHANNELS
@@ -193,6 +199,7 @@ impl BlockCode {
             _ => None,
         }
     }
+
     /// Get the block signature (if any).
     pub fn signature(self) -> &'static [u8] {
         use self::BlockCode::*;
@@ -203,6 +210,7 @@ impl BlockCode {
             _ => &[],
         }
     }
+
     /// Get the block size in bytes
     pub fn size(self) -> usize {
         use self::BlockCode::*;
@@ -279,6 +287,7 @@ impl Header {
     pub fn with_version(version: [u8; 3]) -> Self {
         Header { version }
     }
+
     /// Get the GIF version
     pub fn version(self) -> [u8; 3] {
         self.version
@@ -312,28 +321,34 @@ impl LogicalScreenDesc {
         self.screen_width = screen_width;
         self
     }
+
     /// Get the screen width
     pub fn screen_width(self) -> u16 {
         self.screen_width
     }
+
     /// Set the screen height
     pub fn with_screen_height(mut self, screen_height: u16) -> Self {
         self.screen_height = screen_height;
         self
     }
+
     /// Get the screen height
     pub fn screen_height(self) -> u16 {
         self.screen_height
     }
+
     /// Set the flags which control the global color table configuration
     pub fn with_flags(mut self, flags: u8) -> Self {
         self.flags = flags;
         self
     }
+
     /// Get the flags which control the global color table configuration
     pub fn flags(self) -> u8 {
         self.flags
     }
+
     /// Check the descriptor for global color table existence
     fn color_table_existence(self) -> ColorTableExistence {
         if self.flags & Self::COLOR_TABLE_PRESENT != 0 {
@@ -342,10 +357,12 @@ impl LogicalScreenDesc {
             ColorTableExistence::Absent
         }
     }
+
     /// Get the color resolution (obsolete GIF feature)
     pub fn color_resolution(self) -> u16 {
         2 << ((self.flags & Self::COLOR_RESOLUTION) >> 4 as u16)
     }
+
     /// Check the descriptor for global color table ordering
     fn color_table_ordering(self) -> ColorTableOrdering {
         if self.flags & Self::COLOR_TABLE_ORDERING != 0 {
@@ -354,10 +371,12 @@ impl LogicalScreenDesc {
             ColorTableOrdering::NotSorted
         }
     }
+
     /// Check the descriptor for global color table length
     fn color_table_len(self) -> usize {
         2 << ((self.flags & Self::COLOR_TABLE_SIZE) as usize)
     }
+
     /// Get the global color table configuration
     pub fn color_table_config(self) -> ColorTableConfig {
         let existence = self.color_table_existence();
@@ -369,6 +388,7 @@ impl LogicalScreenDesc {
             table_len,
         }
     }
+
     /// Set the global color table configuration
     pub fn with_color_table_config(mut self, tbl: &ColorTableConfig) -> Self {
         let mut flags = tbl.len_bits() & Self::COLOR_TABLE_SIZE;
@@ -382,6 +402,7 @@ impl LogicalScreenDesc {
         self.flags = flags;
         self
     }
+
     /// Set the background color index
     pub fn with_background_color_idx(
         mut self,
@@ -390,15 +411,18 @@ impl LogicalScreenDesc {
         self.background_color_idx = background_color_idx;
         self
     }
+
     /// Get the background color index
     pub fn background_color_idx(self) -> u8 {
         self.background_color_idx
     }
+
     /// Set the pixel aspect ratio (obsolete GIF feature)
     pub fn with_pixel_aspect_ratio(mut self, pixel_aspect_ratio: u8) -> Self {
         self.pixel_aspect_ratio = pixel_aspect_ratio;
         self
     }
+
     /// Get the pixel aspect ratio (obsolete GIF feature)
     pub fn pixel_aspect_ratio(self) -> u8 {
         self.pixel_aspect_ratio
@@ -419,14 +443,17 @@ impl GlobalColorTable {
         let colors = colors.to_vec();
         GlobalColorTable { colors }
     }
+
     /// Get the global color table length (number of entries)
     pub fn len(&self) -> usize {
         self.colors.len() / CHANNELS
     }
+
     /// Check if the table is empty
     pub fn is_empty(&self) -> bool {
         self.colors.is_empty()
     }
+
     /// Get the color table data
     pub fn colors(&self) -> &[u8] {
         &self.colors
@@ -446,6 +473,7 @@ impl PlainText {
         assert!(b.len() < 256);
         self.sub_blocks.push(b.to_vec());
     }
+
     /// Get the sub blocks
     pub fn sub_blocks(&self) -> &Vec<Vec<u8>> {
         &self.sub_blocks
@@ -475,36 +503,44 @@ impl GraphicControl {
     pub fn set_flags(&mut self, flags: u8) {
         self.flags = flags;
     }
+
     /// Get the graphic control flags
     pub fn flags(self) -> u8 {
         self.flags
     }
+
     /// Get the frame disposal method
     pub fn disposal_method(self) -> DisposalMethod {
         ((self.flags & Self::DISPOSAL_METHOD) >> 2).into()
     }
+
     /// Set the frame disposal method
     pub fn set_disposal_method(&mut self, disposal_method: DisposalMethod) {
         let d: u8 = disposal_method.into();
         self.flags = (self.flags | !Self::DISPOSAL_METHOD) | (d << 2);
     }
+
     /// Get the user input flag
     pub fn user_input(self) -> bool {
         (self.flags & Self::USER_INPUT) != 0
     }
+
     /// Set the user input flag
     pub fn set_user_input(&mut self, user_input: bool) {
         let u = (user_input as u8) << 1;
         self.flags = (self.flags | !Self::USER_INPUT) | u;
     }
+
     /// Get the frame delay time (centiseconds)
     pub fn delay_time_cs(self) -> u16 {
         self.delay_time_cs
     }
+
     /// Set the frame delay time (centiseconds)
     pub fn set_delay_time_cs(&mut self, delay_time_cs: u16) {
         self.delay_time_cs = delay_time_cs;
     }
+
     /// Get the transparent color, if any
     pub fn transparent_color(self) -> Option<u8> {
         let t = (self.flags & Self::TRANSPARENT_COLOR) != 0;
@@ -514,14 +550,17 @@ impl GraphicControl {
             None
         }
     }
+
     /// Get the transparent color index
     pub fn transparent_color_idx(self) -> u8 {
         self.transparent_color_idx
     }
+
     /// Set the transparent color index
     pub fn set_transparent_color_idx(&mut self, transparent_color_idx: u8) {
         self.transparent_color_idx = transparent_color_idx;
     }
+
     /// Set the transparent color
     pub fn set_transparent_color(&mut self, transparent_color: Option<u8>) {
         match transparent_color {
@@ -551,6 +590,7 @@ impl Comment {
         assert!(b.len() < 256);
         self.comments.push(b.to_vec());
     }
+
     /// Get the comments
     pub fn comments(&self) -> &Vec<Vec<u8>> {
         &self.comments
@@ -570,6 +610,7 @@ impl Application {
     fn is_looping(app_id: &[u8]) -> bool {
         app_id == b"NETSCAPE2.0" || app_id == b"ANIMEXTS1.0"
     }
+
     /// Create a new application block with specified loop count
     pub fn with_loop_count(loop_count: u16) -> Self {
         let mut app_data = vec![];
@@ -580,15 +621,18 @@ impl Application {
         app_data.push(v);
         Application { app_data }
     }
+
     /// Add application data
     pub fn add_app_data(&mut self, b: &[u8]) {
         assert!(b.len() < 256);
         self.app_data.push(b.to_vec());
     }
+
     /// Get the application data
     pub fn app_data(&self) -> &Vec<Vec<u8>> {
         &self.app_data
     }
+
     /// Get the loop count, if applicable
     pub fn loop_count(&self) -> Option<u16> {
         // NOTE: this block must follow immediately after GlobalColorTable
@@ -624,11 +668,13 @@ impl Unknown {
             &self.sub_blocks[0]
         }
     }
+
     /// Add a sub-block
     pub fn add_sub_block(&mut self, b: &[u8]) {
         assert!(b.len() < 256);
         self.sub_blocks.push(b.to_vec());
     }
+
     /// Get the sub-blocks
     pub fn sub_blocks(&self) -> &[Vec<u8>] {
         if self.sub_blocks.is_empty() {
@@ -667,48 +713,58 @@ impl ImageDesc {
         self.left = left;
         self
     }
+
     /// Get the left position
     pub fn left(&self) -> u16 {
         self.left
     }
+
     /// Set the top position
     pub fn with_top(mut self, top: u16) -> Self {
         self.top = top;
         self
     }
+
     /// Get the top position
     pub fn top(&self) -> u16 {
         self.top
     }
+
     /// Set the width
     pub fn with_width(mut self, width: u16) -> Self {
         self.width = width;
         self
     }
+
     /// Get the width
     pub fn width(&self) -> u16 {
         self.width
     }
+
     /// Set the height
     pub fn with_height(mut self, height: u16) -> Self {
         self.height = height;
         self
     }
+
     /// Get the height
     pub fn height(&self) -> u16 {
         self.height
     }
+
     /// Set the flags which control the interlace value and the local color
     /// table configuration.
     pub fn with_flags(mut self, flags: u8) -> Self {
         self.flags = flags;
         self
     }
+
     /// Get the flags which control the interlace value and the local color
     /// table configuration.
     pub fn flags(&self) -> u8 {
         self.flags
     }
+
     /// Set the interlaced flag
     pub fn with_interlaced(mut self, interlaced: bool) -> Self {
         self.flags = if interlaced {
@@ -718,10 +774,12 @@ impl ImageDesc {
         };
         self
     }
+
     /// Get the interlaced flag
     pub fn interlaced(&self) -> bool {
         (self.flags & Self::INTERLACED) != 0
     }
+
     /// Check the descriptor for local color table existence
     fn color_table_existence(&self) -> ColorTableExistence {
         if self.flags & Self::COLOR_TABLE_PRESENT != 0 {
@@ -730,6 +788,7 @@ impl ImageDesc {
             ColorTableExistence::Absent
         }
     }
+
     /// Check the descriptor for local color table ordering
     fn color_table_ordering(&self) -> ColorTableOrdering {
         if self.flags & Self::COLOR_TABLE_ORDERING != 0 {
@@ -738,10 +797,12 @@ impl ImageDesc {
             ColorTableOrdering::NotSorted
         }
     }
+
     /// Check the descriptor for local color table length
     fn color_table_len(&self) -> usize {
         2 << u16::from(self.flags & Self::COLOR_TABLE_SIZE)
     }
+
     /// Get the local color table configuration
     pub fn color_table_config(&self) -> ColorTableConfig {
         let existence = self.color_table_existence();
@@ -753,6 +814,7 @@ impl ImageDesc {
             table_len,
         }
     }
+
     /// Set the local color table configuration
     pub fn with_color_table_config(mut self, tbl: &ColorTableConfig) -> Self {
         let mut flags = self.flags & (Self::INTERLACED | Self::RESERVED);
@@ -766,6 +828,7 @@ impl ImageDesc {
         self.flags = flags;
         self
     }
+
     /// Get the image size (bytes)
     pub fn image_sz(&self) -> usize {
         self.width as usize * self.height as usize
@@ -786,14 +849,17 @@ impl LocalColorTable {
         let colors = colors.to_vec();
         LocalColorTable { colors }
     }
+
     /// Get the local color table length (number of entries)
     pub fn len(&self) -> usize {
         self.colors.len() / CHANNELS
     }
+
     /// Check if the table is empty
     pub fn is_empty(&self) -> bool {
         self.colors.is_empty()
     }
+
     /// Get the color table data
     pub fn colors(&self) -> &[u8] {
         &self.colors
@@ -815,10 +881,12 @@ impl ImageData {
         data.push(2); // LZW minimum code size
         ImageData { data }
     }
+
     /// Check if the image data is complete
     pub fn is_complete(&self) -> bool {
         self.data.len() == self.data.capacity()
     }
+
     /// Add data to the image
     pub fn add_data(&mut self, data: &[u8]) {
         let rem = self.data.capacity() - self.data.len();
@@ -836,16 +904,19 @@ impl ImageData {
             }
         }
     }
+
     /// Set the minimum code size
     pub fn set_min_code_size(&mut self, min_code_size: u8) {
         // minimum code size must be between 2 and 12
         self.data[0] = 2.max(min_code_size).min(12);
     }
+
     /// Get the minimum code size
     pub fn min_code_size(&self) -> u8 {
         // first byte must contain min_code_size
         self.data[0]
     }
+
     /// Get the image data
     pub fn data(&self) -> &[u8] {
         // Skip the LZW minimum code size
@@ -996,6 +1067,7 @@ impl Preamble {
     pub fn screen_width(&self) -> u16 {
         self.logical_screen_desc.screen_width()
     }
+
     /// Get the screen height
     pub fn screen_height(&self) -> u16 {
         self.logical_screen_desc.screen_height()
@@ -1033,6 +1105,7 @@ impl Frame {
             image_data,
         }
     }
+
     /// Get the frame disposal method
     pub fn disposal_method(&self) -> DisposalMethod {
         match &self.graphic_control_ext {
@@ -1040,6 +1113,7 @@ impl Frame {
             None => DisposalMethod::NoAction,
         }
     }
+
     /// Get the frame transparent color
     pub fn transparent_color(&self) -> Option<u8> {
         match &self.graphic_control_ext {
@@ -1047,18 +1121,22 @@ impl Frame {
             None => None,
         }
     }
+
     /// Get the left position
     pub fn left(&self) -> u16 {
         self.image_desc.left()
     }
+
     /// Get the top position
     pub fn top(&self) -> u16 {
         self.image_desc.top()
     }
+
     /// Get the width
     pub fn width(&self) -> u16 {
         self.image_desc.width()
     }
+
     /// Get the height
     pub fn height(&self) -> u16 {
         self.image_desc.height()

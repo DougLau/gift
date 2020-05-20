@@ -28,6 +28,7 @@ impl<W: Write> BlockEnc<W> {
     pub(crate) fn new(writer: W) -> Self {
         BlockEnc { writer }
     }
+
     /// Encode one [Block](block/enum.Block.html).
     pub fn encode<B>(&mut self, block: B) -> Result<(), Error>
     where
@@ -213,12 +214,14 @@ impl ImageData {
         self.format_block(w)?;
         w.write_all(&[0])
     }
+
     /// Format the entire "block" (including sub-blocks)
     fn format_block<W: Write>(&self, mut w: &mut W) -> io::Result<()> {
         let mut bw = BlockWriter::new(&mut w);
         self.format_data(&mut bw)?;
         bw.flush()
     }
+
     /// Format image data (with LZW encoding)
     fn format_data<W: Write>(
         &self,
@@ -264,6 +267,7 @@ impl<'a, W: Write> Write for BlockWriter<'a, W> {
         }
         Ok(consumed)
     }
+
     /// Flush data remaining in the buffer
     fn flush(&mut self) -> io::Result<()> {
         let len = self.buf.len();
@@ -292,6 +296,7 @@ impl<W: Write> FrameEnc<W> {
             has_trailer: false,
         }
     }
+
     /// Encode the GIF preamble blocks.
     ///
     /// Must be called only once, before [encode_frame].
@@ -319,6 +324,7 @@ impl<W: Write> FrameEnc<W> {
         self.has_preamble = true;
         Ok(())
     }
+
     /// Encode one `Frame` of a GIF file.
     ///
     /// Must be called after [encode_preamble].
@@ -338,6 +344,7 @@ impl<W: Write> FrameEnc<W> {
         self.block_enc.encode(frame.image_data.clone())?;
         Ok(())
     }
+
     /// Encode the [Trailer] of a GIF file.
     ///
     /// Must be called last, after all `Frame`s have been encoded with
@@ -382,12 +389,14 @@ impl<W: Write> RasterEnc<W> {
             control: None,
         }
     }
+
     /// Set the frame delay time (centiseconds)
     pub fn set_delay_time_cs(&mut self, delay_time_cs: u16) {
         let mut control = self.control.unwrap_or_default();
         control.set_delay_time_cs(delay_time_cs);
         self.control = Some(control);
     }
+
     /// Encode an indexed `Raster` to a GIF file.
     pub fn encode_indexed_raster(
         &mut self,
@@ -419,6 +428,7 @@ impl<W: Write> RasterEnc<W> {
         let frame = Frame::new(self.control, image_desc, None, image_data);
         self.frame_enc.encode_frame(&frame)
     }
+
     /// Encode one `Raster` to a GIF file.
     pub fn encode_raster<P: Pixel>(
         &mut self,
