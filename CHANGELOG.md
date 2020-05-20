@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.8.0] - 2020-50-20
 ### Changed
 * Updated pix dependency to 0.13
 
