@@ -869,7 +869,8 @@ impl LocalColorTable {
 /// An image data block contains image data for one frame.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageData {
-    /// Compressed; first byte is LZW minimum code size
+    /// Image data in uncompressed form; first byte is LZW minimum code size.
+    /// Within GIF files, this data is compressed using LZW.
     data: Vec<u8>,
 }
 

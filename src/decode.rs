@@ -743,11 +743,13 @@ fn update_raster(
     frame: &Frame,
     global_tbl: &Option<GlobalColorTable>,
 ) -> Result<(), Error> {
-    let x: u32 = frame.left().into();
-    let y: u32 = frame.top().into();
-    let width: u32 = frame.width().into();
-    let height: u32 = frame.height().into();
-    if x + width <= raster.width() && y + height <= raster.height() {
+    let x = u32::from(frame.left());
+    let y = u32::from(frame.top());
+    let width = u32::from(frame.width());
+    let height = u32::from(frame.height());
+    let rwidth = raster.width();
+    let rheight = raster.height();
+    if x + width <= rwidth && y + height <= rheight {
         let clrs = if let Some(tbl) = &frame.local_color_table {
             tbl.colors()
         } else if let Some(tbl) = global_tbl {
@@ -756,10 +758,13 @@ fn update_raster(
             return Err(Error::MissingColorTable);
         };
         let trans_clr = frame.transparent_color();
-        for yi in y..y + height {
-            let yr = yi * raster.width();
-            for xi in x..x + width {
-                let idx = frame.image_data.data()[(yr + xi) as usize];
+        let reg = (frame.left().into(), frame.top().into(), width, height);
+        let width = width as usize;
+        let height = height as usize;
+        let data = frame.image_data.data();
+        for (row, frow) in raster.rows_mut(reg).zip(data.chunks_exact(width)) {
+            for (p, fp) in row.iter_mut().zip(frow) {
+                let idx = *fp;
                 let i = 3 * idx as usize;
                 if i + 2 > clrs.len() {
                     return Err(Error::InvalidColorIndex);
@@ -768,7 +773,7 @@ fn update_raster(
                     Some(trans_idx) if trans_idx == idx => SRgba8::default(),
                     _ => SRgba8::new(clrs[i], clrs[i + 1], clrs[i + 2], 255),
                 };
-                *raster.pixel_mut(xi as i32, yi as i32) = entry;
+                *p = entry;
             }
         }
         Ok(())
