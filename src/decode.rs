@@ -760,7 +760,6 @@ fn update_raster(
         let trans_clr = frame.transparent_color();
         let reg = (frame.left().into(), frame.top().into(), width, height);
         let width = width as usize;
-        let height = height as usize;
         let data = frame.image_data.data();
         for (row, frow) in raster.rows_mut(reg).zip(data.chunks_exact(width)) {
             for (p, fp) in row.iter_mut().zip(frow) {
