@@ -237,7 +237,7 @@ impl ImageData {
 
 /// Block / sub-block writer
 struct BlockWriter<'a, W: Write> {
-    /// Buffered writer
+    /// Writer for blocks
     writer: &'a mut W,
     /// Block buffer
     buf: Vec<u8>,

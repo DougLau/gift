@@ -43,7 +43,7 @@ const BUF_SZ: usize = 1024;
 /// [into_blocks]: ../struct.Decoder.html#method.into_blocks
 ///
 pub struct Blocks<R: Read> {
-    /// Buffered reader
+    /// Reader for blocks
     reader: R,
     /// Maximum image size in bytes
     max_image_sz: Option<usize>,

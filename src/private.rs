@@ -50,11 +50,12 @@ pub struct Decoder<R: Read> {
 }
 
 impl<R: Read> Decoder<BufReader<R>> {
-    /// Create a new GIF decoder.
+    /// Create a new buffered GIF decoder.
     pub fn new(reader: R) -> Self {
         Self::new_unbuffered(BufReader::new(reader))
     }
 }
+
 impl<R: Read> Decoder<R> {
     /// Create a new unbuffered GIF decoder.
     pub fn new_unbuffered(reader: R) -> Self {
