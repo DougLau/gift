@@ -17,6 +17,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut palette = Palette::new(2);
     palette.set_entry(SRgb8::new(0xFF, 0, 0));
     palette.set_entry(SRgb8::new(0xFF, 0xFF, 0));
-    enc.encode_indexed_raster(&raster, palette)?;
+    enc.encode_indexed_raster(&raster, &palette)?;
     Ok(())
 }

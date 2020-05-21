@@ -5,10 +5,7 @@
 //! GIF file encoding
 use crate::block::*;
 use crate::Error;
-use pix::el::Pixel;
-use pix::gray::{Gray, Gray8};
-use pix::rgb::Rgb;
-use pix::{Palette, Raster};
+use pix::{el::Pixel, gray::Gray8, rgb::Rgb, Palette, Raster};
 use std::convert::TryInto;
 use std::io::{self, Write};
 
@@ -368,6 +365,8 @@ impl<W: Write> FrameEnc<W> {
 pub struct RasterEnc<W: Write> {
     /// Frame encoder
     frame_enc: FrameEnc<W>,
+    /// Animation loop count
+    loop_count: Option<Application>,
     /// Preamble blocks
     preamble: Option<Preamble>,
     /// Graphic control
@@ -385,9 +384,17 @@ impl<W: Write> RasterEnc<W> {
     pub(crate) fn new(frame_enc: FrameEnc<W>) -> Self {
         RasterEnc {
             frame_enc,
+            loop_count: None,
             preamble: None,
             control: None,
         }
+    }
+
+    /// Set the animation loop count.
+    ///
+    /// * `loop_count`: Number of times to loop animation; zero means forever)
+    pub fn set_loop_count(&mut self, loop_count: u16) {
+        self.loop_count = Some(Application::with_loop_count(loop_count));
     }
 
     /// Set the frame delay time (centiseconds)
@@ -401,29 +408,38 @@ impl<W: Write> RasterEnc<W> {
     pub fn encode_indexed_raster(
         &mut self,
         raster: &Raster<Gray8>,
-        palette: Palette,
+        palette: &Palette,
     ) -> Result<(), Error> {
-        let mut buf = [0; 1];
-        let width = raster.width().try_into()?;
-        let height = raster.height().try_into()?;
-        let image_desc =
-            ImageDesc::default().with_width(width).with_height(height);
-        let mut image_data = ImageData::new((width * height).into());
-        for p in raster.pixels() {
-            buf[0] = u8::from(Gray::value(*p));
-            image_data.add_data(&buf[..]);
-        }
-        if let Some(preamble) = &self.preamble {
-            if preamble.screen_width() != width
-                || preamble.screen_height() != height
-            {
-                return Err(Error::InvalidRasterDimensions);
+        let image_desc = make_image_desc(raster)?;
+        let image_data = make_image_data(raster);
+        let (tbl_cfg, pal) = make_color_table(palette);
+        let mut preamble = Preamble::default();
+        preamble.logical_screen_desc = LogicalScreenDesc::default()
+            .with_screen_width(image_desc.width())
+            .with_screen_height(image_desc.height())
+            .with_color_table_config(tbl_cfg);
+        preamble.global_color_table =
+            Some(GlobalColorTable::with_colors(&pal[..]));
+        preamble.loop_count_ext = self.loop_count.clone();
+        match &self.preamble {
+            Some(pre) => {
+                if pre.logical_screen_desc != preamble.logical_screen_desc {
+                    return Err(Error::InvalidRasterDimensions);
+                }
+                if pre.global_color_table != preamble.global_color_table {
+                    let frame = Frame::new(
+                        self.control,
+                        image_desc.with_color_table_config(tbl_cfg),
+                        Some(LocalColorTable::with_colors(&pal[..])),
+                        image_data,
+                    );
+                    return self.frame_enc.encode_frame(&frame);
+                }
             }
-            todo!("add local color table");
-        } else {
-            let preamble = make_preamble(width, height, palette);
-            self.frame_enc.encode_preamble(&preamble)?;
-            self.preamble = Some(preamble);
+            None => {
+                self.frame_enc.encode_preamble(&preamble)?;
+                self.preamble = Some(preamble);
+            }
         }
         let frame = Frame::new(self.control, image_desc, None, image_data);
         self.frame_enc.encode_frame(&frame)
@@ -438,18 +454,28 @@ impl<W: Write> RasterEnc<W> {
     }
 }
 
-/// Make the preamble blocks
-fn make_preamble(w: u16, h: u16, palette: Palette) -> Preamble {
+/// Make an image description block
+fn make_image_desc(raster: &Raster<Gray8>) -> Result<ImageDesc, Error> {
+    let width = raster.width().try_into()?;
+    let height = raster.height().try_into()?;
+    Ok(ImageDesc::default().with_width(width).with_height(height))
+}
+
+/// Make an image data block
+fn make_image_data(raster: &Raster<Gray8>) -> ImageData {
+    let mut image_data = ImageData::new(raster.pixels().len());
+    image_data.add_data(raster.as_u8_slice());
+    image_data
+}
+
+/// Make a color table from a palette
+fn make_color_table(palette: &Palette) -> (ColorTableConfig, Vec<u8>) {
     let tbl_cfg = ColorTableConfig::new(
         ColorTableExistence::Present,
         ColorTableOrdering::NotSorted,
         palette.len() as u16,
     );
-    let desc = LogicalScreenDesc::default()
-        .with_screen_width(w)
-        .with_screen_height(h)
-        .with_color_table_config(&tbl_cfg);
-    let mut pal = Vec::<u8>::with_capacity(palette.len() * 3);
+    let mut pal = Vec::with_capacity(palette.len() * 3);
     for c in palette.colors() {
         pal.push(u8::from(Rgb::red(*c)));
         pal.push(u8::from(Rgb::green(*c)));
@@ -458,9 +484,5 @@ fn make_preamble(w: u16, h: u16, palette: Palette) -> Preamble {
     while pal.len() < tbl_cfg.size_bytes() {
         pal.push(0);
     }
-    let table = GlobalColorTable::with_colors(&pal[..]);
-    let mut preamble = Preamble::default();
-    preamble.logical_screen_desc = desc;
-    preamble.global_color_table = Some(table);
-    preamble
+    (tbl_cfg, pal)
 }
