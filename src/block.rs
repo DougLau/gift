@@ -23,7 +23,7 @@
 const CHANNELS: usize = 3;
 
 /// Configuration setting indicating the presence or absence of a color table
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColorTableExistence {
     /// Color table is absent
     Absent,
@@ -32,7 +32,7 @@ pub enum ColorTableExistence {
 }
 
 /// Configuration setting indicating whether the color table is ordered
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColorTableOrdering {
     /// Color table not sorted
     NotSorted,
@@ -41,7 +41,7 @@ pub enum ColorTableOrdering {
 }
 
 /// A color table configuration defines the size and ordering of a color table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ColorTableConfig {
     /// Does the table exist?
     existence: ColorTableExistence,
@@ -121,7 +121,7 @@ impl ColorTableConfig {
 }
 
 /// Method to dispose of a frame in an animation
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DisposalMethod {
     /// No disposal specified
     NoAction,
@@ -168,7 +168,7 @@ impl From<DisposalMethod> for u8 {
 }
 
 /// Codes for each type of block
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum BlockCode {
     /// Header block code (signature / magic)
     Header_,
@@ -227,7 +227,7 @@ impl BlockCode {
 }
 
 /// Extension block codes
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ExtensionCode {
     /// Plain text extension code
     PlainText_,
@@ -270,7 +270,7 @@ impl From<ExtensionCode> for u8 {
 /// The header contains the
 /// [magic](https://en.wikipedia.org/wiki/File_format#Magic_number)
 /// string "GIF", followed by a version number.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Header {
     version: [u8; 3],
 }
@@ -296,7 +296,7 @@ impl Header {
 
 /// The logical screen descriptor contains properties which apply to all frames
 /// in the file.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LogicalScreenDesc {
     /// Pixel width of logical screen
     screen_width: u16,
@@ -431,7 +431,7 @@ impl LogicalScreenDesc {
 
 /// The global color table, if present, is used for all frames which do not
 /// define a [LocalColorTable](struct.LocalColorTable.html).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GlobalColorTable {
     colors: Vec<u8>,
 }
@@ -461,7 +461,7 @@ impl GlobalColorTable {
 }
 
 /// The plain text extension block is an obsolete GIF feature.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PlainText {
     /// Sequence of sub-blocks
     sub_blocks: Vec<Vec<u8>>,
@@ -482,7 +482,7 @@ impl PlainText {
 
 /// The graphic control extension block contains animation parameters for one
 /// frame.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct GraphicControl {
     /// Bit flags
     flags: u8,
@@ -579,8 +579,9 @@ impl GraphicControl {
 /// A comment extension block contains unstructured file metadata.
 ///
 /// The specification recommends using the ASCII encoding.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Comment {
+    /// Vec of comments
     comments: Vec<Vec<u8>>,
 }
 
@@ -599,7 +600,7 @@ impl Comment {
 
 /// The application extension block is typically only used to enable looping
 /// animation.  Other uses are ignored by most GIF readers.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Application {
     /// Sequence of sub-blocks
     app_data: Vec<Vec<u8>>,
@@ -653,7 +654,7 @@ impl Application {
 
 /// Unknown extension blocks should not exist, but might be generated
 /// by non-standard encoders.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Unknown {
     /// Sequence of sub-blocks (first has ext_id)
     sub_blocks: Vec<Vec<u8>>,
@@ -686,7 +687,7 @@ impl Unknown {
 }
 
 /// The image descriptor block contains properties which apply to one frame.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ImageDesc {
     /// Left position relative to logical screen
     left: u16,
@@ -837,8 +838,9 @@ impl ImageDesc {
 
 /// The local color table, if present, must immediately
 /// follow an image descriptor block.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocalColorTable {
+    /// Colors in table
     colors: Vec<u8>,
 }
 
@@ -867,7 +869,7 @@ impl LocalColorTable {
 }
 
 /// An image data block contains image data for one frame.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImageData {
     /// Image data in uncompressed form; first byte is LZW minimum code size.
     /// Within GIF files, this data is compressed using LZW.
@@ -931,11 +933,11 @@ fn next_high_bit(value: u8) -> u8 {
 }
 
 /// The trailer block indicates the end of a GIF file.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Trailer {}
 
 /// A block within a GIF file.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Block {
     /// Header block
     Header(Header),
@@ -1049,7 +1051,7 @@ impl From<Trailer> for Block {
 
 /// The preamble blocks are the first few
 /// blocks in a GIF file, before any frames.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Preamble {
     /// Header block
     pub header: Header,
