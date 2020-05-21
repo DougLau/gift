@@ -8,6 +8,8 @@
 //!
 //! ## Decode Example
 //! ```
+//! use gift::Decoder;
+//!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let gif = &[
 //! #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
@@ -17,7 +19,7 @@
 //! #   0x10, 0x05, 0x00, 0x3b,
 //! # ][..];
 //! // ... open a `File` as "gif"
-//! for raster in gift::Decoder::new(gif) {
+//! for raster in Decoder::new(gif) {
 //!     // was there a decoding error?
 //!     let raster = raster?;
 //!     // ... work with raster

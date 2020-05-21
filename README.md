@@ -8,8 +8,11 @@ A Rust library for encoding and decoding GIF images.
 ## Decoding example
 
 ```rust
-// ... open a `File` as "gif"
-for raster in gift::Decoder::new(gif) {
+use gift::Decoder;
+use std::fs::File;
+
+let gif = File::open("example.gif")?;
+for raster in Decoder::new(gif) {
     // was there a decoding error?
     let raster = raster?;
     // ... work with raster
@@ -23,7 +26,3 @@ within GIF files.
 ```
 cargo install gift --features=cmd
 ```
-
-## TODO
-
-* Interlaced images

@@ -104,6 +104,28 @@ impl<R: Read> IntoIterator for Decoder<R> {
 /// * [into_frame_enc] for mid-level [Frame]s
 /// * [into_block_enc] for low-level [Block]s
 ///
+/// ## Encoding Example
+/// ```
+/// use gift::Encoder;
+/// use pix::{gray::Gray8, Palette, Raster, rgb::SRgb8};
+/// use std::error::Error;
+/// use std::io::Write;
+///
+/// fn encode<W: Write>(mut w: W) -> Result<(), Box<dyn Error>> {
+///     let mut enc = Encoder::new(&mut w).into_raster_enc();
+///     let mut raster = Raster::with_clear(4, 4);
+///     *raster.pixel_mut(0, 0) = Gray8::new(1);
+///     *raster.pixel_mut(1, 1) = Gray8::new(1);
+///     *raster.pixel_mut(2, 2) = Gray8::new(1);
+///     *raster.pixel_mut(3, 3) = Gray8::new(1);
+///     let mut palette = Palette::new(2);
+///     palette.set_entry(SRgb8::new(0xFF, 0, 0));
+///     palette.set_entry(SRgb8::new(0xFF, 0xFF, 0));
+///     enc.encode_indexed_raster(&raster, palette)?;
+///     Ok(())
+/// }
+/// ```
+///
 /// [Block]: block/enum.Block.html
 /// [Frame]: block/struct.Frame.html
 /// [into_block_enc]: struct.Encoder.html#method.into_block_enc
