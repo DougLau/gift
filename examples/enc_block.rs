@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         LogicalScreenDesc::default()
             .with_screen_width(4)
             .with_screen_height(4)
-            .with_color_table_config(&g_tbl)
+            .with_color_table_config(g_tbl)
             .with_background_color_idx(1),
     )?;
     blocks.encode(GlobalColorTable::with_colors(&colors))?;
@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ImageDesc::default()
             .with_width(4)
             .with_height(4)
-            .with_color_table_config(&l_tbl),
+            .with_color_table_config(l_tbl),
     )?;
     blocks.encode(image)?;
     blocks.encode(Trailer::default())?;

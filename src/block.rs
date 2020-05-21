@@ -390,7 +390,7 @@ impl LogicalScreenDesc {
     }
 
     /// Set the global color table configuration
-    pub fn with_color_table_config(mut self, tbl: &ColorTableConfig) -> Self {
+    pub fn with_color_table_config(mut self, tbl: ColorTableConfig) -> Self {
         let mut flags = tbl.len_bits() & Self::COLOR_TABLE_SIZE;
         flags |= (flags << 4) & Self::COLOR_RESOLUTION;
         if tbl.existence == ColorTableExistence::Present {
@@ -817,7 +817,7 @@ impl ImageDesc {
     }
 
     /// Set the local color table configuration
-    pub fn with_color_table_config(mut self, tbl: &ColorTableConfig) -> Self {
+    pub fn with_color_table_config(mut self, tbl: ColorTableConfig) -> Self {
         let mut flags = self.flags & (Self::INTERLACED | Self::RESERVED);
         flags |= tbl.len_bits() & Self::COLOR_TABLE_SIZE;
         if tbl.existence == ColorTableExistence::Present {
