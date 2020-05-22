@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+* Result type for gift crate
 * `RasterEnc::with_loop_count`
 * `RasterEnc::set_transparent_color`
 * `RasterEnc::set_disposal_method`

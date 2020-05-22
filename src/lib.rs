@@ -42,5 +42,5 @@ pub mod encode;
 mod error;
 mod private;
 
-pub use crate::error::Error;
+pub use crate::error::{Error, Result};
 pub use crate::private::{Decoder, Encoder};

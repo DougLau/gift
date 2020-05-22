@@ -43,6 +43,9 @@ pub enum Error {
     InvalidRasterDimensions,
 }
 
+/// Gift result type
+pub type Result<T> = std::result::Result<T, Error>;
+
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {

@@ -4,7 +4,7 @@
 //
 //! GIF file decoding
 use crate::block::*;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use pix::rgb::SRgba8;
 use pix::{Raster, Region};
 use std::io::{ErrorKind, Read};
@@ -60,7 +60,7 @@ pub struct Blocks<R: Read> {
 }
 
 impl<R: Read> Iterator for Blocks<R> {
-    type Item = Result<Block, Error>;
+    type Item = Result<Block>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -93,7 +93,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Examine buffer for block code and size.
-    fn examine_buffer(&mut self) -> Result<(BlockCode, usize), Error> {
+    fn examine_buffer(&mut self) -> Result<(BlockCode, usize)> {
         let code = *self
             .buffer
             .iter()
@@ -158,7 +158,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Decode the next block (including all sub-blocks).
-    fn next_block(&mut self) -> Result<Block, Error> {
+    fn next_block(&mut self) -> Result<Block> {
         self.fill_buffer()?;
         let (bc, sz) = self.examine_buffer()?;
         let mut block = self.decode_block(bc, sz)?;
@@ -170,7 +170,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Check end of block (after sub-blocks)
-    fn check_block_end(&mut self, block: &Block) -> Result<(), Error> {
+    fn check_block_end(&mut self, block: &Block) -> Result<()> {
         if let Block::ImageData(b) = block {
             self.decoder = None;
             if !b.is_complete() {
@@ -181,7 +181,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Fill the buffer from reader
-    fn fill_buffer(&mut self) -> Result<(), Error> {
+    fn fill_buffer(&mut self) -> Result<()> {
         let mut len = self.buffer.len();
         self.buffer.resize(BUF_SZ, 0);
         while len < BUF_SZ {
@@ -197,11 +197,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Decode one block
-    fn decode_block(
-        &mut self,
-        bc: BlockCode,
-        sz: usize,
-    ) -> Result<Block, Error> {
+    fn decode_block(&mut self, bc: BlockCode, sz: usize) -> Result<Block> {
         let len = self.buffer.len();
         if len >= sz {
             debug!("  block  : {:?} {:?}", bc, sz);
@@ -215,7 +211,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse a block in the buffer
-    fn parse_block(&self, bc: BlockCode, sz: usize) -> Result<Block, Error> {
+    fn parse_block(&self, bc: BlockCode, sz: usize) -> Result<Block> {
         use crate::block::BlockCode::*;
         let buf = &self.buffer[..sz];
         Ok(match bc {
@@ -231,7 +227,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Check start of block (before sub-blocks)
-    fn check_block_start(&mut self, block: &Block) -> Result<(), Error> {
+    fn check_block_start(&mut self, block: &Block) -> Result<()> {
         match block {
             Block::ImageDesc(b) => {
                 self.image_sz = b.image_sz();
@@ -253,7 +249,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Decode one sub-block
-    fn decode_sub_block(&mut self, block: &mut Block) -> Result<bool, Error> {
+    fn decode_sub_block(&mut self, block: &mut Block) -> Result<bool> {
         self.fill_buffer()?;
         let len = self.buffer.len();
         if len > 0 {
@@ -272,11 +268,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse a sub-block in the buffer
-    fn parse_sub_block(
-        &mut self,
-        block: &mut Block,
-        sz: usize,
-    ) -> Result<(), Error> {
+    fn parse_sub_block(&mut self, block: &mut Block, sz: usize) -> Result<()> {
         assert!(sz <= 256);
         use crate::block::Block::*;
         match block {
@@ -296,7 +288,7 @@ impl<R: Read> Blocks<R> {
         &mut self,
         b: &mut ImageData,
         sz: usize,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         if let Some(ref mut dec) = &mut self.decoder {
             let mut s = 1;
             while s < sz {
@@ -313,7 +305,7 @@ impl<R: Read> Blocks<R> {
 
 impl Header {
     /// Decode a Header block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self, Error> {
+    fn from_buf(buf: &[u8]) -> Result<Self> {
         assert_eq!(buf.len(), BlockCode::Header_.size());
         if &buf[..3] == b"GIF" {
             let version = [buf[3], buf[4], buf[5]];
@@ -329,7 +321,7 @@ impl Header {
 
 impl LogicalScreenDesc {
     /// Decode a Logical Screen Descriptor block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self, Error> {
+    fn from_buf(buf: &[u8]) -> Result<Self> {
         assert_eq!(buf.len(), BlockCode::LogicalScreenDesc_.size());
         let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
         let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
@@ -354,7 +346,7 @@ impl GlobalColorTable {
 
 impl ImageDesc {
     /// Decode an Image Descriptor block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self, Error> {
+    fn from_buf(buf: &[u8]) -> Result<Self> {
         assert_eq!(buf.len(), BlockCode::ImageDesc_.size());
         let left = u16::from(buf[2]) << 8 | u16::from(buf[1]);
         let top = u16::from(buf[4]) << 8 | u16::from(buf[3]);
@@ -379,7 +371,7 @@ impl LocalColorTable {
 
 impl ImageData {
     /// Decode an Image Data block from a buffer
-    fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self, Error> {
+    fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
         let min_code_size = buf[0];
         let mut selfy = Self::new(image_sz);
@@ -418,7 +410,7 @@ impl PlainText {
 
 impl GraphicControl {
     /// Parse a Graphic Control extension block
-    fn parse_buf(&mut self, buf: &[u8]) -> Result<(), Error> {
+    fn parse_buf(&mut self, buf: &[u8]) -> Result<()> {
         if buf.len() == 4 {
             self.set_flags(buf[0]);
             let delay = u16::from(buf[2]) << 8 | u16::from(buf[1]);
@@ -504,7 +496,7 @@ pub struct Frames<R: Read> {
 }
 
 impl<R: Read> Iterator for Frames<R> {
-    type Item = Result<Frame, Error>;
+    type Item = Result<Frame>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(block) = self.blocks.next() {
@@ -537,7 +529,7 @@ impl<R: Read> Frames<R> {
 
     /// Read preamble blocks.  These are the blocks at the beginning of the
     /// file, before any frame blocks.
-    pub fn preamble(&mut self) -> Result<Option<Preamble>, Error> {
+    pub fn preamble(&mut self) -> Result<Option<Preamble>> {
         if self.has_frame() {
             return Ok(None);
         }
@@ -559,7 +551,7 @@ impl<R: Read> Frames<R> {
     }
 
     /// Handle one block
-    fn handle_block(&mut self, block: Block) -> Result<Option<Frame>, Error> {
+    fn handle_block(&mut self, block: Block) -> Result<Option<Frame>> {
         match block {
             Block::Header(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
@@ -662,8 +654,8 @@ pub struct Rasters<R: Read> {
 }
 
 impl<R: Read> Iterator for Rasters<R> {
-    // TODO: need delay time (and color table for indexed rasters)
-    type Item = Result<Raster<SRgba8>, Error>;
+    // TODO: need delay time
+    type Item = Result<Raster<SRgba8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.raster.is_none() {
@@ -689,7 +681,7 @@ impl<R: Read> Rasters<R> {
     }
 
     /// Make the initial raster
-    fn make_raster(&mut self) -> Result<(), Error> {
+    fn make_raster(&mut self) -> Result<()> {
         if let Some(mut p) = self.frames.preamble()? {
             self.global_color_table = p.global_color_table.take();
             let w = p.screen_width().into();
@@ -703,7 +695,7 @@ impl<R: Read> Rasters<R> {
     }
 
     /// Get the next raster
-    fn next_raster(&mut self) -> Option<Result<Raster<SRgba8>, Error>> {
+    fn next_raster(&mut self) -> Option<Result<Raster<SRgba8>>> {
         assert!(self.raster.is_some());
         match self.frames.next() {
             Some(Ok(f)) => Some(self.apply_frame(f)),
@@ -713,7 +705,7 @@ impl<R: Read> Rasters<R> {
     }
 
     /// Apply a frame to the raster
-    fn apply_frame(&mut self, frame: Frame) -> Result<Raster<SRgba8>, Error> {
+    fn apply_frame(&mut self, frame: Frame) -> Result<Raster<SRgba8>> {
         let raster = if let DisposalMethod::Previous = frame.disposal_method() {
             let raster = self.raster.as_ref().unwrap();
             let mut raster = Raster::with_raster(raster);
@@ -742,7 +734,7 @@ fn update_raster(
     raster: &mut Raster<SRgba8>,
     frame: &Frame,
     global_tbl: &Option<GlobalColorTable>,
-) -> Result<(), Error> {
+) -> Result<()> {
     let x = u32::from(frame.left());
     let y = u32::from(frame.top());
     let width = u32::from(frame.width());

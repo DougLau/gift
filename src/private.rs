@@ -3,7 +3,7 @@
 // Copyright (c) 2019-2020  Douglas Lau
 //
 //! Private module for top-level items
-use crate::{decode, encode, Error};
+use crate::{decode, encode, Result};
 use pix::rgb::SRgba8;
 use pix::Raster;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -88,7 +88,7 @@ impl<R: Read> Decoder<R> {
 }
 
 impl<R: Read> IntoIterator for Decoder<R> {
-    type Item = Result<Raster<SRgba8>, Error>;
+    type Item = Result<Raster<SRgba8>>;
     type IntoIter = decode::Rasters<R>;
 
     /// Convert into a raster `Iterator`

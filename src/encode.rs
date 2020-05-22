@@ -3,8 +3,7 @@
 // Copyright (c) 2019-2020  Douglas Lau
 //
 //! GIF file encoding
-use crate::block::*;
-use crate::Error;
+use crate::{block::*, Error, Result};
 use pix::{el::Pixel, gray::Gray8, rgb::Rgb, Palette, Raster};
 use std::convert::TryInto;
 use std::io::{self, Write};
@@ -27,7 +26,7 @@ impl<W: Write> BlockEnc<W> {
     }
 
     /// Encode one [Block](block/enum.Block.html).
-    pub fn encode<B>(&mut self, block: B) -> Result<(), Error>
+    pub fn encode<B>(&mut self, block: B) -> Result<()>
     where
         B: Into<Block>,
     {
@@ -299,10 +298,7 @@ impl<W: Write> FrameEnc<W> {
     /// Must be called only once, before [encode_frame].
     ///
     /// [encode_frame]: struct.FrameEnc.html#method.encode_frame
-    pub fn encode_preamble(
-        &mut self,
-        preamble: &Preamble,
-    ) -> Result<(), Error> {
+    pub fn encode_preamble(&mut self, preamble: &Preamble) -> Result<()> {
         if self.has_preamble {
             return Err(Error::InvalidBlockSequence);
         }
@@ -327,7 +323,7 @@ impl<W: Write> FrameEnc<W> {
     /// Must be called after [encode_preamble].
     ///
     /// [encode_preamble]: struct.FrameEnc.html#method.encode_preamble
-    pub fn encode_frame(&mut self, frame: &Frame) -> Result<(), Error> {
+    pub fn encode_frame(&mut self, frame: &Frame) -> Result<()> {
         if self.has_trailer || !self.has_preamble {
             return Err(Error::InvalidBlockSequence);
         }
@@ -349,7 +345,7 @@ impl<W: Write> FrameEnc<W> {
     ///
     /// [encode_frame]: struct.FrameEnc.html#method.encode_frame
     /// [Trailer]: block/struct.Trailer.html
-    pub fn encode_trailer(&mut self) -> Result<(), Error> {
+    pub fn encode_trailer(&mut self) -> Result<()> {
         if self.has_trailer || !self.has_preamble {
             return Err(Error::InvalidBlockSequence);
         }
@@ -424,7 +420,7 @@ impl<W: Write> RasterEnc<W> {
         &mut self,
         raster: &Raster<Gray8>,
         palette: &Palette,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let image_desc = make_image_desc(raster)?;
         let image_data = make_image_data(raster);
         let (tbl_cfg, pal) = make_color_table(palette);
@@ -465,13 +461,13 @@ impl<W: Write> RasterEnc<W> {
     pub fn encode_raster<P: Pixel>(
         &mut self,
         _raster: &Raster<P>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         todo!("convert raster to indexed raster");
     }
 }
 
 /// Make an image description block
-fn make_image_desc(raster: &Raster<Gray8>) -> Result<ImageDesc, Error> {
+fn make_image_desc(raster: &Raster<Gray8>) -> Result<ImageDesc> {
     let width = raster.width().try_into()?;
     let height = raster.height().try_into()?;
     Ok(ImageDesc::default().with_width(width).with_height(height))
