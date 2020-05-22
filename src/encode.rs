@@ -393,14 +393,22 @@ impl<W: Write> RasterEnc<W> {
     /// Set the animation loop count.
     ///
     /// * `loop_count`: Number of times to loop animation; zero means forever)
-    pub fn set_loop_count(&mut self, loop_count: u16) {
+    pub fn with_loop_count(mut self, loop_count: u16) -> Self {
         self.loop_count = Some(Application::with_loop_count(loop_count));
+        self
     }
 
     /// Set the frame delay time (centiseconds)
     pub fn set_delay_time_cs(&mut self, delay_time_cs: u16) {
         let mut control = self.control.unwrap_or_default();
         control.set_delay_time_cs(delay_time_cs);
+        self.control = Some(control);
+    }
+
+    /// Set the frame transparent color
+    pub fn set_transparent_color(&mut self, transparent_color: Option<u8>) {
+        let mut control = self.control.unwrap_or_default();
+        control.set_transparent_color(transparent_color);
         self.control = Some(control);
     }
 
@@ -421,6 +429,7 @@ impl<W: Write> RasterEnc<W> {
         preamble.global_color_table =
             Some(GlobalColorTable::with_colors(&pal[..]));
         preamble.loop_count_ext = self.loop_count.clone();
+        let control = self.control.take();
         match &self.preamble {
             Some(pre) => {
                 if pre.logical_screen_desc != preamble.logical_screen_desc {
@@ -428,7 +437,7 @@ impl<W: Write> RasterEnc<W> {
                 }
                 if pre.global_color_table != preamble.global_color_table {
                     let frame = Frame::new(
-                        self.control,
+                        control,
                         image_desc.with_color_table_config(tbl_cfg),
                         Some(LocalColorTable::with_colors(&pal[..])),
                         image_data,
