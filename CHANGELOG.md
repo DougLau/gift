@@ -3,6 +3,7 @@
 ### Added
 * `RasterEnc::with_loop_count`
 * `RasterEnc::set_transparent_color`
+* `RasterEnc::set_disposal_method`
 ### Changed
 * Blocks now implement Debug + Eq
 

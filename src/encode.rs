@@ -369,7 +369,7 @@ pub struct RasterEnc<W: Write> {
     loop_count: Option<Application>,
     /// Preamble blocks
     preamble: Option<Preamble>,
-    /// Graphic control
+    /// Graphic control for the next frame
     control: Option<GraphicControl>,
 }
 
@@ -390,7 +390,7 @@ impl<W: Write> RasterEnc<W> {
         }
     }
 
-    /// Set the animation loop count.
+    /// Set loop count for the animation.
     ///
     /// * `loop_count`: Number of times to loop animation; zero means forever)
     pub fn with_loop_count(mut self, loop_count: u16) -> Self {
@@ -398,17 +398,24 @@ impl<W: Write> RasterEnc<W> {
         self
     }
 
-    /// Set the frame delay time (centiseconds)
+    /// Set delay time (centiseconds) for the next frame.
     pub fn set_delay_time_cs(&mut self, delay_time_cs: u16) {
         let mut control = self.control.unwrap_or_default();
         control.set_delay_time_cs(delay_time_cs);
         self.control = Some(control);
     }
 
-    /// Set the frame transparent color
+    /// Set transparent color for the next frame.
     pub fn set_transparent_color(&mut self, transparent_color: Option<u8>) {
         let mut control = self.control.unwrap_or_default();
         control.set_transparent_color(transparent_color);
+        self.control = Some(control);
+    }
+
+    /// Set disposal method for the next frame.
+    pub fn set_disposal_method(&mut self, disposal_method: DisposalMethod) {
+        let mut control = self.control.unwrap_or_default();
+        control.set_disposal_method(disposal_method);
         self.control = Some(control);
     }
 

@@ -657,8 +657,8 @@ pub struct Rasters<R: Read> {
     frames: Frames<R>,
     /// Global color table block
     global_color_table: Option<GlobalColorTable>,
-    /// Current raster
-    raster: Option<Raster<SRgba8>>, // TODO: parameterize pix trait
+    /// Current raster of animation
+    raster: Option<Raster<SRgba8>>,
 }
 
 impl<R: Read> Iterator for Rasters<R> {
