@@ -5,8 +5,7 @@
 //! GIF file decoding
 use crate::block::*;
 use crate::error::{Error, Result};
-use pix::rgb::SRgba8;
-use pix::{Raster, Region};
+use pix::{rgb::SRgba8, Raster};
 use std::io::{ErrorKind, Read};
 
 /// Buffer size (must be at least as large as a color table with 256 entries)
@@ -717,15 +716,10 @@ impl<R: Read> Rasters<R> {
             Raster::with_raster(raster)
         };
         if let DisposalMethod::Background = frame.disposal_method() {
-            let x = frame.left().into();
-            let y = frame.top().into();
-            let w = frame.width().into();
-            let h = frame.height().into();
-            let reg = Region::new(x, y, w, h);
             let rs = self.raster.as_mut().unwrap();
-            rs.copy_color(reg, SRgba8::default());
+            rs.copy_color(frame.region(), SRgba8::default());
         }
-        Ok(raster)
+        Ok(RasterStep(raster, delay_time))
     }
 }
 
@@ -735,13 +729,8 @@ fn update_raster(
     frame: &Frame,
     global_tbl: &Option<GlobalColorTable>,
 ) -> Result<()> {
-    let x = u32::from(frame.left());
-    let y = u32::from(frame.top());
-    let width = u32::from(frame.width());
-    let height = u32::from(frame.height());
-    let rwidth = raster.width();
-    let rheight = raster.height();
-    if x + width <= rwidth && y + height <= rheight {
+    let reg = frame.region();
+    if raster.intersection(reg) == reg {
         let clrs = if let Some(tbl) = &frame.local_color_table {
             tbl.colors()
         } else if let Some(tbl) = global_tbl {
@@ -750,8 +739,7 @@ fn update_raster(
             return Err(Error::MissingColorTable);
         };
         let trans_clr = frame.transparent_color();
-        let reg = (frame.left().into(), frame.top().into(), width, height);
-        let width = width as usize;
+        let width = usize::from(frame.width());
         let data = frame.image_data.data();
         for (row, frow) in raster.rows_mut(reg).zip(data.chunks_exact(width)) {
             for (p, fp) in row.iter_mut().zip(frow) {

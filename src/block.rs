@@ -18,6 +18,8 @@
 //!   - [LocalColorTable](struct.LocalColorTable.html) *(optional)*
 //!   - [ImageData](struct.ImageData.html)
 //! * [Trailer](struct.Trailer.html)
+//!
+use pix::Region;
 
 /// Number of channels in color tables (red, green and blue)
 const CHANNELS: usize = 3;
@@ -1143,6 +1145,15 @@ impl Frame {
     /// Get the height
     pub fn height(&self) -> u16 {
         self.image_desc.height()
+    }
+
+    /// Get frame region
+    pub fn region(&self) -> Region {
+        let x = self.left().into();
+        let y = self.top().into();
+        let w = self.width().into();
+        let h = self.height().into();
+        Region::new(x, y, w, h)
     }
 }
 
