@@ -409,7 +409,7 @@ impl<W: Write> StepEnc<W> {
         &mut self,
         raster: &Raster<Gray8>,
         palette: &Palette,
-        control: &Option<GraphicControl>,
+        control: Option<GraphicControl>,
     ) -> Result<()> {
         let image_desc = make_image_desc(raster)?;
         let image_data = make_image_data(raster);
@@ -429,7 +429,7 @@ impl<W: Write> StepEnc<W> {
                 }
                 if pre.global_color_table != preamble.global_color_table {
                     let frame = Frame::new(
-                        *control,
+                        control,
                         image_desc.with_color_table_config(tbl_cfg),
                         Some(LocalColorTable::with_colors(&pal[..])),
                         image_data,
@@ -442,7 +442,7 @@ impl<W: Write> StepEnc<W> {
                 self.preamble = Some(preamble);
             }
         }
-        let frame = Frame::new(*control, image_desc, None, image_data);
+        let frame = Frame::new(control, image_desc, None, image_data);
         self.frame_enc.encode_frame(&frame)
     }
 
@@ -458,7 +458,7 @@ impl<W: Write> StepEnc<W> {
                 self.encode_indexed_raster(
                     raster,
                     palette,
-                    &step.graphic_control_ext,
+                    step.graphic_control_ext,
                 )?;
             }
         }
