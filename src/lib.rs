@@ -19,9 +19,10 @@
 //! #   0x10, 0x05, 0x00, 0x3b,
 //! # ][..];
 //! // ... open a `File` as "gif"
-//! for raster in Decoder::new(gif) {
+//! for step in Decoder::new(gif) {
 //!     // was there a decoding error?
-//!     let raster = raster?;
+//!     let step = step?;
+//!     let raster = step.raster();
 //!     // ... work with raster
 //! }
 //! # Ok(())
@@ -43,4 +44,4 @@ mod error;
 mod private;
 
 pub use crate::error::{Error, Result};
-pub use crate::private::{Decoder, Encoder};
+pub use crate::private::{Decoder, Encoder, Step};

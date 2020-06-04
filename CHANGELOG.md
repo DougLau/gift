@@ -2,11 +2,11 @@
 
 ### Added
 * Result type for gift crate
-* `RasterEnc::with_loop_count`
-* `RasterEnc::set_transparent_color`
-* `RasterEnc::set_disposal_method`
+* `Step` struct to contain an animation step
 ### Changed
 * Blocks now implement Debug + Eq
+* `Encoder::into_raster_enc` to `into_step_enc` (`RasterEnc` to `StepEnc`)
+* `Decoder::into_rasters` to `into_steps` (`Rasters` to `Steps`)
 
 ## [0.8.0] - 2020-50-20
 ### Changed

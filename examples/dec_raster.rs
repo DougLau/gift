@@ -10,8 +10,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn decode(path: &str) -> Result<(), Box<dyn Error>> {
     let gif = File::open(path)?;
-    for raster in gift::Decoder::new(gif) {
-        let raster = raster?;
+    for step in gift::Decoder::new(gif) {
+        let step = step?;
+        let raster = step.raster();
         println!("raster: {:?}x{:?}", raster.width(), raster.height());
     }
     Ok(())

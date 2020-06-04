@@ -12,9 +12,10 @@ use gift::Decoder;
 use std::fs::File;
 
 let gif = File::open("example.gif")?;
-for raster in Decoder::new(gif) {
+for step in Decoder::new(gif) {
     // was there a decoding error?
-    let raster = raster?;
+    let step = step?;
+    let raster = step.raster();
     // ... work with raster
 }
 ```

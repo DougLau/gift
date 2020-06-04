@@ -3,8 +3,8 @@
 // Copyright (c) 2019-2020  Douglas Lau
 //
 //! GIF file encoding
-use crate::{block::*, Error, Result};
-use pix::{el::Pixel, gray::Gray8, rgb::Rgb, Palette, Raster};
+use crate::{block::*, private::StepRaster, Error, Result, Step};
+use pix::{gray::Gray8, rgb::Rgb, Palette, Raster};
 use std::convert::TryInto;
 use std::io::{self, Write};
 
@@ -355,34 +355,36 @@ impl<W: Write> FrameEnc<W> {
     }
 }
 
-/// Encoder for writing `Raster`s into a GIF file.
+/// Encoder for writing [Step]s into a GIF file.
 ///
 /// All `Raster`s must have the same dimensions.
-pub struct RasterEnc<W: Write> {
+///
+/// [Step]: ../struct.Step.html
+pub struct StepEnc<W: Write> {
     /// Frame encoder
     frame_enc: FrameEnc<W>,
+    /// Global color table
+    global_color_table: (ColorTableConfig, Option<GlobalColorTable>),
     /// Animation loop count
     loop_count: Option<Application>,
     /// Preamble blocks
     preamble: Option<Preamble>,
-    /// Graphic control for the next frame
-    control: Option<GraphicControl>,
 }
 
-impl<W: Write> Drop for RasterEnc<W> {
+impl<W: Write> Drop for StepEnc<W> {
     fn drop(&mut self) {
         let _ = self.frame_enc.encode_trailer();
     }
 }
 
-impl<W: Write> RasterEnc<W> {
+impl<W: Write> StepEnc<W> {
     /// Create a new GIF raster encoder.
     pub(crate) fn new(frame_enc: FrameEnc<W>) -> Self {
-        RasterEnc {
+        StepEnc {
             frame_enc,
+            global_color_table: (ColorTableConfig::default(), None),
             loop_count: None,
             preamble: None,
-            control: None,
         }
     }
 
@@ -394,32 +396,20 @@ impl<W: Write> RasterEnc<W> {
         self
     }
 
-    /// Set delay time (centiseconds) for the next frame.
-    pub fn set_delay_time_cs(&mut self, delay_time_cs: u16) {
-        let mut control = self.control.unwrap_or_default();
-        control.set_delay_time_cs(delay_time_cs);
-        self.control = Some(control);
-    }
-
-    /// Set transparent color for the next frame.
-    pub fn set_transparent_color(&mut self, transparent_color: Option<u8>) {
-        let mut control = self.control.unwrap_or_default();
-        control.set_transparent_color(transparent_color);
-        self.control = Some(control);
-    }
-
-    /// Set disposal method for the next frame.
-    pub fn set_disposal_method(&mut self, disposal_method: DisposalMethod) {
-        let mut control = self.control.unwrap_or_default();
-        control.set_disposal_method(disposal_method);
-        self.control = Some(control);
+    /// Set the global color table for an animation.
+    pub fn with_global_color_table(mut self, palette: &Palette) -> Self {
+        let (tbl_cfg, pal) = make_color_table(palette);
+        self.global_color_table =
+            (tbl_cfg, Some(GlobalColorTable::with_colors(&pal[..])));
+        self
     }
 
     /// Encode an indexed `Raster` to a GIF file.
-    pub fn encode_indexed_raster(
+    fn encode_indexed_raster(
         &mut self,
         raster: &Raster<Gray8>,
         palette: &Palette,
+        control: &Option<GraphicControl>,
     ) -> Result<()> {
         let image_desc = make_image_desc(raster)?;
         let image_data = make_image_data(raster);
@@ -432,7 +422,6 @@ impl<W: Write> RasterEnc<W> {
         preamble.global_color_table =
             Some(GlobalColorTable::with_colors(&pal[..]));
         preamble.loop_count_ext = self.loop_count.clone();
-        let control = self.control.take();
         match &self.preamble {
             Some(pre) => {
                 if pre.logical_screen_desc != preamble.logical_screen_desc {
@@ -440,7 +429,7 @@ impl<W: Write> RasterEnc<W> {
                 }
                 if pre.global_color_table != preamble.global_color_table {
                     let frame = Frame::new(
-                        control,
+                        *control,
                         image_desc.with_color_table_config(tbl_cfg),
                         Some(LocalColorTable::with_colors(&pal[..])),
                         image_data,
@@ -453,16 +442,27 @@ impl<W: Write> RasterEnc<W> {
                 self.preamble = Some(preamble);
             }
         }
-        let frame = Frame::new(self.control, image_desc, None, image_data);
+        let frame = Frame::new(*control, image_desc, None, image_data);
         self.frame_enc.encode_frame(&frame)
     }
 
-    /// Encode one `Raster` to a GIF file.
-    pub fn encode_raster<P: Pixel>(
-        &mut self,
-        _raster: &Raster<P>,
-    ) -> Result<()> {
-        todo!("convert raster to indexed raster");
+    /// Encode one [Step] to a GIF file.
+    ///
+    /// [Step]: ../struct.Step.html
+    pub fn encode_step(&mut self, step: &Step) -> Result<()> {
+        match &step.raster {
+            StepRaster::TrueColor(_) => {
+                todo!("convert raster to indexed raster");
+            }
+            StepRaster::Indexed(raster, palette) => {
+                self.encode_indexed_raster(
+                    raster,
+                    palette,
+                    &step.graphic_control_ext,
+                )?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -488,10 +488,10 @@ fn make_color_table(palette: &Palette) -> (ColorTableConfig, Vec<u8>) {
         palette.len() as u16,
     );
     let mut pal = Vec::with_capacity(palette.len() * 3);
-    for c in palette.colors() {
-        pal.push(u8::from(Rgb::red(*c)));
-        pal.push(u8::from(Rgb::green(*c)));
-        pal.push(u8::from(Rgb::blue(*c)));
+    for clr in palette.colors() {
+        pal.push(u8::from(Rgb::red(*clr)));
+        pal.push(u8::from(Rgb::green(*clr)));
+        pal.push(u8::from(Rgb::blue(*clr)));
     }
     while pal.len() < tbl_cfg.size_bytes() {
         pal.push(0);

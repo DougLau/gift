@@ -5,6 +5,7 @@
 //! GIF file decoding
 use crate::block::*;
 use crate::error::{Error, Result};
+use crate::private::Step;
 use pix::{rgb::SRgba8, Raster};
 use std::io::{ErrorKind, Read};
 
@@ -616,12 +617,14 @@ impl<R: Read> Frames<R> {
     }
 }
 
-/// An Iterator for `Raster`s within a GIF file.
+/// An Iterator for [Step]s within a GIF file.
 ///
-/// Build with Decoder.[into_iter] (or [into_rasters]).
+/// Build with Decoder.[into_iter] (or [into_steps]).
 ///
 /// ## Example: Get the last raster in a GIF animation
 /// ```
+/// use gift::Decoder;
+///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// # let gif = &[
 /// #   0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00,
@@ -631,9 +634,10 @@ impl<R: Read> Frames<R> {
 /// #   0x10, 0x05, 0x00, 0x3b,
 /// # ][..];
 /// // ... open a File as "gif"
-/// if let Some(raster) = gift::Decoder::new(gif).into_iter().last() {
+/// if let Some(step) = Decoder::new(gif).into_steps().last() {
 ///     // was there a decoding error?
-///     let raster = raster?;
+///     let step = step?;
+///     let raster = step.raster();
 ///     // ... work with raster
 /// }
 /// # Ok(())
@@ -641,9 +645,10 @@ impl<R: Read> Frames<R> {
 /// ```
 ///
 /// [into_iter]: ../struct.Decoder.html#method.into_iter
-/// [into_rasters]: ../struct.Decoder.html#method.into_rasters
+/// [into_steps]: ../struct.Decoder.html#method.into_steps
+/// [Step]: ../struct.Step.html
 ///
-pub struct Rasters<R: Read> {
+pub struct Steps<R: Read> {
     /// Frame decoder
     frames: Frames<R>,
     /// Global color table block
@@ -652,9 +657,8 @@ pub struct Rasters<R: Read> {
     raster: Option<Raster<SRgba8>>,
 }
 
-impl<R: Read> Iterator for Rasters<R> {
-    // TODO: need delay time
-    type Item = Result<Raster<SRgba8>>;
+impl<R: Read> Iterator for Steps<R> {
+    type Item = Result<Step>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.raster.is_none() {
@@ -663,16 +667,16 @@ impl<R: Read> Iterator for Rasters<R> {
             }
         }
         match self.raster {
-            Some(_) => self.next_raster(),
+            Some(_) => self.next_step(),
             None => None,
         }
     }
 }
 
-impl<R: Read> Rasters<R> {
-    /// Create a new raster decoder
+impl<R: Read> Steps<R> {
+    /// Create a new raster step decoder
     pub(crate) fn new(frames: Frames<R>) -> Self {
-        Rasters {
+        Steps {
             frames,
             global_color_table: None,
             raster: None,
@@ -693,8 +697,8 @@ impl<R: Read> Rasters<R> {
         }
     }
 
-    /// Get the next raster
-    fn next_raster(&mut self) -> Option<Result<Raster<SRgba8>>> {
+    /// Get the next step
+    fn next_step(&mut self) -> Option<Result<Step>> {
         assert!(self.raster.is_some());
         match self.frames.next() {
             Some(Ok(f)) => Some(self.apply_frame(f)),
@@ -704,7 +708,11 @@ impl<R: Read> Rasters<R> {
     }
 
     /// Apply a frame to the raster
-    fn apply_frame(&mut self, frame: Frame) -> Result<Raster<SRgba8>> {
+    fn apply_frame(&mut self, frame: Frame) -> Result<Step> {
+        let transparent_color = frame
+            .graphic_control_ext
+            .unwrap_or_default()
+            .transparent_color();
         let raster = if let DisposalMethod::Previous = frame.disposal_method() {
             let raster = self.raster.as_ref().unwrap();
             let mut raster = Raster::with_raster(raster);
@@ -719,7 +727,8 @@ impl<R: Read> Rasters<R> {
             let rs = self.raster.as_mut().unwrap();
             rs.copy_color(frame.region(), SRgba8::default());
         }
-        Ok(RasterStep(raster, delay_time))
+        Ok(Step::with_true_color(raster)
+            .with_transparent_color(transparent_color))
     }
 }
 
@@ -876,8 +885,8 @@ mod test {
             blu, blu, blu, blu, blu, red, red, red, red, red,
             blu, blu, blu, blu, blu, red, red, red, red, red,
         ][..];
-        for r in Decoder::new(GIF_1) {
-            assert_eq!(r?.pixels(), image);
+        for step in Decoder::new(GIF_1) {
+            assert_eq!(step?.raster().pixels(), image);
         }
         Ok(())
     }
