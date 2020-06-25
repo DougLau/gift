@@ -1,6 +1,10 @@
 // dots.rs
 use gift::{Encoder, Step};
-use pix::{gray::{Gray, Gray8}, Palette, Raster, rgb::{Rgb, SRgb8}};
+use pix::{
+    gray::{Gray, Gray8},
+    rgb::{Rgb, SRgb8},
+    Palette, Raster,
+};
 use std::error::Error;
 use std::fs::File;
 
@@ -26,9 +30,14 @@ fn page2(p: &mut Palette) -> Raster<Gray8> {
     r
 }
 
-fn render_circle(raster: &mut Raster<Gray8>, palette: &mut Palette,
-    cx: f32, cy: f32, r: f32, clr: SRgb8)
-{
+fn render_circle(
+    raster: &mut Raster<Gray8>,
+    palette: &mut Palette,
+    cx: f32,
+    cy: f32,
+    r: f32,
+    clr: SRgb8,
+) {
     let x0 = (cx - r).floor().max(0.0) as u32;
     let x1 = (cx + r).ceil().min(raster.width() as f32) as u32;
     let y0 = (cy - r).floor().max(0.0) as u32;
@@ -109,9 +118,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     palette.set_entry(SRgb8::default());
     palette.set_threshold_fn(palette_threshold_rgb8_256);
     let mut fl = File::create("dots.gif")?;
-    let mut enc = Encoder::new(&mut fl)
-        .into_step_enc()
-        .with_loop_count(0);
+    let mut enc = Encoder::new(&mut fl).into_step_enc().with_loop_count(0);
     let raster = page1(&mut palette);
     let step = Step::with_indexed(raster, palette.clone())
         .with_delay_time_cs(Some(200));

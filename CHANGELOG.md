@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.9.0] - 2020-06-04
 ### Added
 * Result type for gift crate
 * `Step` struct to contain an animation step
