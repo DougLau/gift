@@ -340,6 +340,12 @@ impl LogicalScreenDesc {
         self.screen_height
     }
 
+    /// Check if screen sizes are equal
+    pub fn equal_size(self, rhs: Self) -> bool {
+        self.screen_width == rhs.screen_width
+            && self.screen_height == rhs.screen_height
+    }
+
     /// Set the flags which control the global color table configuration
     pub fn with_flags(mut self, flags: u8) -> Self {
         self.flags = flags;

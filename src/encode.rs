@@ -424,7 +424,10 @@ impl<W: Write> StepEnc<W> {
         preamble.loop_count_ext = self.loop_count.clone();
         match &self.preamble {
             Some(pre) => {
-                if pre.logical_screen_desc != preamble.logical_screen_desc {
+                if !pre
+                    .logical_screen_desc
+                    .equal_size(preamble.logical_screen_desc)
+                {
                     return Err(Error::InvalidRasterDimensions);
                 }
                 if pre.global_color_table != preamble.global_color_table {
