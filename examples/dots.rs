@@ -7,6 +7,7 @@ use pix::{
 };
 use std::error::Error;
 use std::fs::File;
+use std::io::BufWriter;
 
 fn page1(p: &mut Palette) -> Raster<Gray8> {
     let amber = SRgb8::new(255, 208, 0);
@@ -117,7 +118,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut palette = Palette::new(256);
     palette.set_entry(SRgb8::default());
     palette.set_threshold_fn(palette_threshold_rgb8_256);
-    let mut fl = File::create("dots.gif")?;
+    let mut fl = BufWriter::new(File::create("dots.gif")?);
     let mut enc = Encoder::new(&mut fl).into_step_enc().with_loop_count(0);
     let raster = page1(&mut palette);
     let step = Step::with_indexed(raster, palette.clone())

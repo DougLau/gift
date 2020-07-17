@@ -10,12 +10,12 @@ A Rust library for encoding and decoding GIF images.
 ```rust
 use gift::Decoder;
 use std::fs::File;
+use std::io::BufReader;
 
-let gif = File::open("example.gif")?;
+let gif = BufReader::new(File::open("example.gif")?);
 for step in Decoder::new(gif) {
     // was there a decoding error?
-    let step = step?;
-    let raster = step.raster();
+    let raster = step?.raster();
     // ... work with raster
 }
 ```

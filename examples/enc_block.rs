@@ -1,10 +1,11 @@
 // Block encoding example
 use gift::{block::*, Encoder};
 use std::error::Error;
+use std::io::BufWriter;
 use std::fs::File;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut f = File::create("test.gif")?;
+    let mut f = BufWriter::new(File::create("test.gif")?);
     let g_tbl = ColorTableConfig::new(
         ColorTableExistence::Present,
         ColorTableOrdering::NotSorted,

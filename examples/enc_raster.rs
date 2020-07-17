@@ -5,9 +5,10 @@ use pix::rgb::SRgb8;
 use pix::{Palette, Raster};
 use std::error::Error;
 use std::fs::File;
+use std::io::BufWriter;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut f = File::create("enc_raster.gif")?;
+    let mut f = BufWriter::new(File::create("enc_raster.gif")?);
     let mut enc = Encoder::new(&mut f).into_step_enc();
     let mut raster = Raster::with_clear(4, 4);
     *raster.pixel_mut(0, 0) = Gray8::new(1);

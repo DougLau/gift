@@ -8,7 +8,7 @@ use libfuzzer_sys::fuzz_target;
 use gift::Decoder;
 
 fuzz_target!(|data: &[u8]| {
-    for frame in Decoder::new_unbuffered(Cursor::new(data)) {
+    for frame in Decoder::new(Cursor::new(data)) {
         if frame.is_err() {
             return;
         }

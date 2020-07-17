@@ -635,9 +635,7 @@ impl<R: Read> Frames<R> {
 /// # ][..];
 /// // ... open a File as "gif"
 /// if let Some(step) = Decoder::new(gif).into_steps().last() {
-///     // was there a decoding error?
-///     let step = step?;
-///     let raster = step.raster();
+///     let raster = step?.raster();
 ///     // ... work with raster
 /// }
 /// # Ok(())

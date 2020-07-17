@@ -5,14 +5,12 @@
 #![forbid(unsafe_code)]
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use gift::{
-    block::{DisposalMethod, Frame},
-    Decoder,
-};
+use gift::block::{DisposalMethod, Frame};
+use gift::Decoder;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// Crate version
@@ -96,7 +94,7 @@ fn show_file(
     bold.set_fg(Some(Color::White))
         .set_intense(true)
         .set_bold(true);
-    let f = File::open(&path)?;
+    let f = BufReader::new(File::open(&path)?);
     let mut frame_dec = Decoder::new(f).into_frames();
     let preamble = if let Some(p) = frame_dec.preamble()? {
         p

@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Removed
+* `Decoder::new_unbuffered` and `Encoder::new_unbuffered`
+### Changed
+* `Decoder::new` and `Encoder::new` are now unbuffered
 ## [0.9.0] - 2020-06-04
 ### Added
 * Result type for gift crate

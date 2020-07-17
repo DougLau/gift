@@ -5,7 +5,7 @@
 //! Private module for top-level items
 use crate::{block::GraphicControl, decode, encode, Result};
 use pix::{gray::Gray8, rgb::SRgba8, Palette, Raster};
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{Read, Write};
 
 /// Raster for an animation step.
 pub(crate) enum StepRaster {
@@ -131,16 +131,9 @@ impl Step {
     }
 }
 
-impl<R: Read> Decoder<BufReader<R>> {
-    /// Create a new buffered GIF decoder.
-    pub fn new(reader: R) -> Self {
-        Self::new_unbuffered(BufReader::new(reader))
-    }
-}
-
 impl<R: Read> Decoder<R> {
-    /// Create a new unbuffered GIF decoder.
-    pub fn new_unbuffered(reader: R) -> Self {
+    /// Create a new GIF decoder.
+    pub fn new(reader: R) -> Self {
         Decoder {
             reader,
             max_image_sz: Some(1 << 25),
@@ -220,16 +213,9 @@ pub struct Encoder<W: Write> {
     writer: W,
 }
 
-impl<W: Write> Encoder<BufWriter<W>> {
+impl<W: Write> Encoder<W> {
     /// Create a new GIF encoder.
     pub fn new(writer: W) -> Self {
-        Self::new_unbuffered(BufWriter::new(writer))
-    }
-}
-
-impl<W: Write> Encoder<W> {
-    /// Create a new unbuffered GIF encoder.
-    pub fn new_unbuffered(writer: W) -> Self {
         Encoder { writer }
     }
 
