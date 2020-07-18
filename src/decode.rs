@@ -253,14 +253,14 @@ impl<R: Read> Blocks<R> {
         self.fill_buffer()?;
         let len = self.buffer.len();
         if len > 0 {
-            let sz = self.buffer[0] as usize;
+            let sz = usize::from(self.buffer[0]);
             if len > sz {
-                let bsz = sz + 1;
+                let blk_sz = sz + 1;
                 if sz > 0 {
                     debug!("sub-block: {:?} {:?}", block, sz);
-                    self.parse_sub_block(block, bsz)?;
+                    self.parse_sub_block(block, blk_sz)?;
                 }
-                self.buffer.drain(..bsz);
+                self.buffer.drain(..blk_sz);
                 return Ok(sz > 0);
             }
         }
@@ -269,7 +269,7 @@ impl<R: Read> Blocks<R> {
 
     /// Parse a sub-block in the buffer
     fn parse_sub_block(&mut self, block: &mut Block, sz: usize) -> Result<()> {
-        assert!(sz <= 256);
+        debug_assert!(sz <= 256);
         use crate::block::Block::*;
         match block {
             PlainText(b) => b.parse_buf(&self.buffer[1..sz]),
@@ -697,7 +697,7 @@ impl<R: Read> Steps<R> {
 
     /// Get the next step
     fn next_step(&mut self) -> Option<Result<Step>> {
-        assert!(self.raster.is_some());
+        debug_assert!(self.raster.is_some());
         match self.frames.next() {
             Some(Ok(f)) => Some(self.apply_frame(f)),
             Some(Err(e)) => Some(Err(e)),
