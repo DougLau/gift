@@ -19,7 +19,7 @@
 //!   - [ImageData](struct.ImageData.html)
 //! * [Trailer](struct.Trailer.html)
 //!
-use pix::Region;
+use pix::{gray::Gray8, Raster, Region};
 
 /// Number of channels in color tables (red, green and blue)
 const CHANNELS: usize = 3;
@@ -884,6 +884,18 @@ pub struct ImageData {
     data: Vec<u8>,
 }
 
+impl From<&Raster<Gray8>> for ImageData {
+    fn from(raster: &Raster<Gray8>) -> Self {
+        let buf = raster.as_u8_slice();
+        let mut image_data = ImageData::new(buf.len());
+        image_data.add_data(buf);
+        if let Some(max_index) = buf.iter().copied().max() {
+            image_data.set_min_code_size(next_high_bit(max_index));
+        }
+        image_data
+    }
+}
+
 impl ImageData {
     /// Create a new image data block
     pub fn new(image_sz: usize) -> Self {
@@ -908,12 +920,6 @@ impl ImageData {
             data
         };
         self.data.extend_from_slice(data);
-        if let Some(max_index) = data.iter().copied().max() {
-            let m = next_high_bit(max_index);
-            if m > self.min_code_size() {
-                self.set_min_code_size(m);
-            }
-        }
     }
 
     /// Set the minimum code size

@@ -412,7 +412,7 @@ impl<W: Write> StepEnc<W> {
         control: Option<GraphicControl>,
     ) -> Result<()> {
         let image_desc = make_image_desc(raster)?;
-        let image_data = make_image_data(raster);
+        let image_data = raster.into();
         let (tbl_cfg, pal) = make_color_table(palette);
         let mut preamble = Preamble::default();
         preamble.logical_screen_desc = LogicalScreenDesc::default()
@@ -474,13 +474,6 @@ fn make_image_desc(raster: &Raster<Gray8>) -> Result<ImageDesc> {
     let width = raster.width().try_into()?;
     let height = raster.height().try_into()?;
     Ok(ImageDesc::default().with_width(width).with_height(height))
-}
-
-/// Make an image data block
-fn make_image_data(raster: &Raster<Gray8>) -> ImageData {
-    let mut image_data = ImageData::new(raster.pixels().len());
-    image_data.add_data(raster.as_u8_slice());
-    image_data
 }
 
 /// Make a color table from a palette
