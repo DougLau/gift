@@ -23,7 +23,7 @@ env_logger = { version = "0.7", optional = true }
 termcolor = { version = "1", optional = true }
 
 [dev-dependencies]
-bencher = "0.1"
+criterion = "0.3"
 
 [features]
 cmd = ["clap", "env_logger", "termcolor"]

@@ -1,17 +1,20 @@
-use bencher::{benchmark_group, benchmark_main, black_box, Bencher};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use gift::Decoder;
 use std::io::Cursor;
 
-fn decode_logo_frames(bencher: &mut Bencher) {
+fn decode_logo_frames(crit: &mut Criterion) {
     let logo = include_bytes!("../res/gift_logo.gif") as &[u8];
 
-    bencher.iter(|| {
-        let decoder = Decoder::new(Cursor::new(black_box(logo))).into_frames();
-        for frame in decoder {
-            black_box(frame.unwrap());
-        }
+    crit.bench_function("decode_frames", |b| {
+        b.iter(|| {
+            let decoder =
+                Decoder::new(Cursor::new(black_box(logo))).into_frames();
+            for frame in decoder {
+                black_box(frame.unwrap());
+            }
+        })
     });
 }
 
-benchmark_group!(benches, decode_logo_frames);
-benchmark_main!(benches);
+criterion_group!(benches, decode_logo_frames);
+criterion_main!(benches);

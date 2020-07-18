@@ -1,8 +1,8 @@
 // Block encoding example
 use gift::{block::*, Encoder};
 use std::error::Error;
-use std::io::BufWriter;
 use std::fs::File;
+use std::io::BufWriter;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut f = BufWriter::new(File::create("test.gif")?);
