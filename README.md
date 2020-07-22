@@ -1,6 +1,6 @@
 # GIF*t*
 
-![](https://github.com/DougLau/gift/workflows/test/badge.svg)
+![](https://github.com/DougLau/gift/workflows/Test/badge.svg)
 
 A Rust library for encoding and decoding GIF images.
 
