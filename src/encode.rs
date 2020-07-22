@@ -3,7 +3,10 @@
 // Copyright (c) 2019-2020  Douglas Lau
 //
 //! GIF file encoding
-use crate::{block::*, private::StepRaster, Error, Result, Step};
+use crate::block::*;
+use crate::lzw::Compressor;
+use crate::private::StepRaster;
+use crate::{Error, Result, Step};
 use pix::{gray::Gray8, rgb::Rgb, Palette, Raster};
 use std::convert::TryInto;
 use std::io::{self, Write};
@@ -213,21 +216,12 @@ impl ImageData {
 
     /// Format the entire "block" (including sub-blocks)
     fn format_block<W: Write>(&self, mut w: &mut W) -> io::Result<()> {
+        let mut buffer = Vec::with_capacity(self.data().len());
+        let mut compressor = Compressor::new(self.min_code_size());
+        compressor.compress(self.data(), &mut buffer);
         let mut bw = BlockWriter::new(&mut w);
-        self.format_data(&mut bw)?;
+        bw.write_all(&buffer)?;
         bw.flush()
-    }
-
-    /// Format image data (with LZW encoding)
-    fn format_data<W: Write>(
-        &self,
-        mut bw: &mut BlockWriter<W>,
-    ) -> io::Result<()> {
-        let mut enc = lzw::Encoder::new(
-            lzw::LsbWriter::new(&mut bw),
-            self.min_code_size(),
-        )?;
-        enc.encode_bytes(self.data())
     }
 }
 

@@ -14,7 +14,6 @@ include = ["src/**/*", "Cargo.*", "LICENSE-*", "README.md", "CHANGELOG.md", "ben
 
 [dependencies]
 log = "0.4"
-lzw = "0.10"
 pix = "0.13"
 
 # NOTE: for cmd only -- library has no optional features

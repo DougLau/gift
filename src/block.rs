@@ -910,6 +910,11 @@ impl ImageData {
         self.data.len() == self.data.capacity()
     }
 
+    /// Get a mutable reference to the buffer
+    pub fn buffer_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.data
+    }
+
     /// Add data to the image
     pub fn add_data(&mut self, data: &[u8]) {
         let rem = self.data.capacity() - self.data.len();

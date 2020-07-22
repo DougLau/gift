@@ -41,6 +41,7 @@ pub mod block;
 pub mod decode;
 pub mod encode;
 mod error;
+mod lzw;
 mod private;
 
 pub use crate::error::{Error, Result};

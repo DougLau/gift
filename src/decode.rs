@@ -5,6 +5,7 @@
 //! GIF file decoding
 use crate::block::*;
 use crate::error::{Error, Result};
+use crate::lzw::Decompressor;
 use crate::private::Step;
 use pix::{rgb::SRgba8, Raster};
 use std::io::{ErrorKind, Read};
@@ -53,8 +54,8 @@ pub struct Blocks<R: Read> {
     expected_next: Option<(BlockCode, usize)>,
     /// Size of image data
     image_sz: usize,
-    /// LZW decoder
-    decoder: Option<lzw::Decoder<lzw::LsbReader>>,
+    /// LZW decompressor
+    decompressor: Option<Decompressor>,
     /// Flag when done
     done: bool,
 }
@@ -88,7 +89,7 @@ impl<R: Read> Blocks<R> {
             expected_next: Some((Header_, Header_.size())),
             image_sz: 0,
             done: false,
-            decoder: None,
+            decompressor: None,
         }
     }
 
@@ -172,7 +173,7 @@ impl<R: Read> Blocks<R> {
     /// Check end of block (after sub-blocks)
     fn check_block_end(&mut self, block: &Block) -> Result<()> {
         if let Block::ImageData(b) = block {
-            self.decoder = None;
+            self.decompressor = None;
             if !b.is_complete() {
                 return Err(Error::IncompleteImageData);
             }
@@ -238,10 +239,7 @@ impl<R: Read> Blocks<R> {
                 }
             }
             Block::ImageData(b) => {
-                self.decoder = Some(lzw::Decoder::new(
-                    lzw::LsbReader::new(),
-                    b.min_code_size(),
-                ));
+                self.decompressor = Some(Decompressor::new(b.min_code_size()));
             }
             _ => {}
         }
@@ -289,13 +287,13 @@ impl<R: Read> Blocks<R> {
         b: &mut ImageData,
         sz: usize,
     ) -> Result<()> {
-        if let Some(ref mut dec) = &mut self.decoder {
-            let mut s = 1;
-            while s < sz {
-                let buf = &self.buffer[s..sz];
-                let (consumed, data) = dec.decode_bytes(buf)?;
-                b.parse_buf(data);
-                s += consumed;
+        if let Some(ref mut dec) = &mut self.decompressor {
+            let capacity = b.buffer_mut().capacity();
+            dec.decompress(&self.buffer[1..sz], b.buffer_mut())?;
+            if b.buffer_mut().len() > capacity {
+                warn!("Extra image data: {:?}", &b.buffer_mut()[capacity..]);
+                b.buffer_mut().truncate(capacity);
+                b.buffer_mut().shrink_to_fit();
             }
             return Ok(());
         }
@@ -448,13 +446,6 @@ impl Unknown {
     /// Parse an Unknown extension block
     fn parse_buf(&mut self, buf: &[u8]) {
         self.add_sub_block(buf);
-    }
-}
-
-impl ImageData {
-    /// Parse an Image Data block
-    fn parse_buf(&mut self, buf: &[u8]) {
-        self.add_data(buf);
     }
 }
 
