@@ -35,3 +35,7 @@ required-features = ["cmd"]
 [[bench]]
 name = "decode"
 harness = false
+
+[[bench]]
+name = "encode"
+harness = false
