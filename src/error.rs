@@ -26,8 +26,10 @@ pub enum Error {
     MalformedGraphicControlExtension,
     /// File ends with incomplete block.
     UnexpectedEndOfFile,
-    /// LZW code size must be less than or equal to 12.
-    InvalidCodeSize,
+    /// LZW code size must be between 2 and 12, inclusive.
+    InvalidLzwCodeSize,
+    /// Compressed LZW data invalid or corrupt
+    InvalidLzwData,
     /// Image larger than specified by
     /// [max_image_sz](struct.Decoder.html#method.max_image_sz).
     TooLargeImage,

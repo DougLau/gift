@@ -378,7 +378,7 @@ impl ImageData {
         if selfy.min_code_size() == min_code_size {
             Ok(selfy)
         } else {
-            Err(Error::InvalidCodeSize)
+            Err(Error::InvalidLzwCodeSize)
         }
     }
 }

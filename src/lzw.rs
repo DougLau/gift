@@ -3,8 +3,8 @@
 // Copyright (c) 2020  Douglas Lau
 //
 //! Lempel-Ziv-Welch compression for GIF
+use crate::error::{Error, Result};
 use std::cmp::Ordering;
-use std::io;
 use std::ops::AddAssign;
 
 /// Code Bits
@@ -371,7 +371,7 @@ impl Decompressor {
         &mut self,
         bytes: &[u8],
         buffer: &mut Vec<u8>,
-    ) -> io::Result<()> {
+    ) -> Result<()> {
         let mut bytes = bytes;
         while bytes.len() > 0 {
             let (consumed, code) = self.unpack(bytes);
@@ -388,7 +388,7 @@ impl Decompressor {
         &mut self,
         code: Code,
         buffer: &mut Vec<u8>,
-    ) -> io::Result<()> {
+    ) -> Result<()> {
         if code == self.dict.clear_code() {
             self.dict.reset();
             self.code_bits = Bits::from(self.min_code_bits + 1);
@@ -407,18 +407,10 @@ impl Decompressor {
         &mut self,
         code: Code,
         buffer: &mut Vec<u8>,
-    ) -> io::Result<()> {
+    ) -> Result<()> {
         let next_code = self.dict.next_code();
         match (self.last, code.cmp(&next_code)) {
-            (_, Ordering::Greater) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    &*format!(
-                        "Invalid code {:X}, expected code <= {:X}",
-                        code, next_code,
-                    ),
-                ))
-            }
+            (_, Ordering::Greater) => return Err(Error::InvalidLzwData),
             (Some(last), Ordering::Less) => {
                 self.dict.decompress_reversed(code, buffer);
                 let byte = buffer.last().copied().unwrap();
