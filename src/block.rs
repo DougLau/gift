@@ -905,6 +905,12 @@ impl ImageData {
         ImageData { data }
     }
 
+    /// Get the image size (bytes)
+    pub fn image_sz(&self) -> usize {
+        self.data.capacity()
+    }
+    }
+
     /// Check if the image data is complete
     pub fn is_complete(&self) -> bool {
         self.data.len() == self.data.capacity()
@@ -917,7 +923,7 @@ impl ImageData {
 
     /// Add data to the image
     pub fn add_data(&mut self, data: &[u8]) {
-        let rem = self.data.capacity() - self.data.len();
+        let rem = self.image_sz() - self.data.len();
         let data = if data.len() > rem {
             warn!("Extra image data: {:?}", &data[rem..]);
             &data[..rem]
@@ -1180,6 +1186,7 @@ mod test {
 
     #[test]
     fn block_size() {
+        dbg!(std::mem::size_of::<Block>());
         assert!(std::mem::size_of::<Block>() <= 32);
     }
 

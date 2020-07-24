@@ -269,35 +269,17 @@ impl<R: Read> Blocks<R> {
     fn parse_sub_block(&mut self, block: &mut Block, sz: usize) -> Result<()> {
         debug_assert!(sz <= 256);
         use crate::block::Block::*;
+        let bytes = &self.buffer[1..sz];
         match block {
-            PlainText(b) => b.parse_buf(&self.buffer[1..sz]),
-            GraphicControl(b) => b.parse_buf(&self.buffer[1..sz])?,
-            Comment(b) => b.parse_buf(&self.buffer[1..sz]),
-            Application(b) => b.parse_buf(&self.buffer[1..sz]),
-            Unknown(b) => b.parse_buf(&self.buffer[1..sz]),
-            ImageData(b) => self.decode_image_data(b, sz)?,
+            PlainText(b) => b.parse_sub_block(bytes),
+            GraphicControl(b) => b.parse_sub_block(bytes)?,
+            Comment(b) => b.parse_sub_block(bytes),
+            Application(b) => b.parse_sub_block(bytes),
+            Unknown(b) => b.parse_sub_block(bytes),
+            ImageData(b) => b.parse_sub_block(bytes, &mut self.decompressor)?,
             _ => panic!("Invalid state in parse_sub_block!"),
         }
         Ok(())
-    }
-
-    /// Decode image data
-    fn decode_image_data(
-        &mut self,
-        b: &mut ImageData,
-        sz: usize,
-    ) -> Result<()> {
-        if let Some(ref mut dec) = &mut self.decompressor {
-            let capacity = b.buffer_mut().capacity();
-            dec.decompress(&self.buffer[1..sz], b.buffer_mut())?;
-            if b.buffer_mut().len() > capacity {
-                warn!("Extra image data: {:?}", &b.buffer_mut()[capacity..]);
-                b.buffer_mut().truncate(capacity);
-                b.buffer_mut().shrink_to_fit();
-            }
-            return Ok(());
-        }
-        panic!("Invalid state in decode_image_data!");
     }
 }
 
@@ -371,15 +353,31 @@ impl ImageData {
     /// Decode an Image Data block from a buffer
     fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
-        let min_code_size = buf[0];
-        let mut selfy = Self::new(image_sz);
-        selfy.set_min_code_size(min_code_size);
-        // check if min_code_size was valid
-        if selfy.min_code_size() == min_code_size {
+        let min_code_bits = buf[0];
+        let selfy = Self::new(image_sz, min_code_bits);
+        if selfy.min_code_bits() == min_code_bits {
             Ok(selfy)
         } else {
             Err(Error::InvalidLzwCodeSize)
         }
+    }
+
+    /// Parse an Image Data block
+    fn parse_sub_block(
+        &mut self,
+        bytes: &[u8],
+        decompressor: &mut Option<Decompressor>,
+    ) -> Result<()> {
+        if let Some(ref mut dec) = decompressor {
+            let image_sz = self.image_sz();
+            dec.decompress(bytes, self.buffer_mut())?;
+            if self.buffer_mut().len() > image_sz {
+                warn!("Extra image data: {:?}", &self.buffer_mut()[image_sz..]);
+                self.buffer_mut().truncate(image_sz);
+            }
+            return Ok(());
+        }
+        panic!("Invalid state in decode_image_data!");
     }
 }
 
@@ -400,20 +398,20 @@ impl Block {
 }
 
 impl PlainText {
-    /// Parse a Plain Text extension block
-    fn parse_buf(&mut self, buf: &[u8]) {
-        self.add_sub_block(buf);
+    /// Parse a Plain Text extension sub-block
+    fn parse_sub_block(&mut self, bytes: &[u8]) {
+        self.add_sub_block(bytes);
     }
 }
 
 impl GraphicControl {
-    /// Parse a Graphic Control extension block
-    fn parse_buf(&mut self, buf: &[u8]) -> Result<()> {
-        if buf.len() == 4 {
-            self.set_flags(buf[0]);
-            let delay = u16::from(buf[2]) << 8 | u16::from(buf[1]);
+    /// Parse a Graphic Control extension sub-block
+    fn parse_sub_block(&mut self, bytes: &[u8]) -> Result<()> {
+        if bytes.len() == 4 {
+            self.set_flags(bytes[0]);
+            let delay = u16::from(bytes[2]) << 8 | u16::from(bytes[1]);
             self.set_delay_time_cs(delay);
-            self.set_transparent_color_idx(buf[3]);
+            self.set_transparent_color_idx(bytes[3]);
             Ok(())
         } else {
             Err(Error::MalformedGraphicControlExtension)
@@ -422,16 +420,16 @@ impl GraphicControl {
 }
 
 impl Comment {
-    /// Parse a Comment extension block
-    fn parse_buf(&mut self, buf: &[u8]) {
-        self.add_comment(buf);
+    /// Parse a Comment extension sub-block
+    fn parse_sub_block(&mut self, bytes: &[u8]) {
+        self.add_comment(bytes);
     }
 }
 
 impl Application {
-    /// Parse an Application extension block
-    fn parse_buf(&mut self, buf: &[u8]) {
-        self.add_app_data(buf);
+    /// Parse an Application extension sub-block
+    fn parse_sub_block(&mut self, bytes: &[u8]) {
+        self.add_app_data(bytes);
     }
 }
 
@@ -443,9 +441,9 @@ impl Unknown {
         b
     }
 
-    /// Parse an Unknown extension block
-    fn parse_buf(&mut self, buf: &[u8]) {
-        self.add_sub_block(buf);
+    /// Parse an Unknown extension sub-block
+    fn parse_sub_block(&mut self, bytes: &[u8]) {
+        self.add_sub_block(bytes);
     }
 }
 
