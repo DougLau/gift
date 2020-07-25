@@ -10,9 +10,6 @@ use crate::private::Step;
 use pix::{rgb::SRgba8, Raster};
 use std::io::{ErrorKind, Read};
 
-/// Buffer size (must be at least as large as a color table with 256 entries)
-const BUF_SZ: usize = 1024;
-
 /// An Iterator for [Block]s within a GIF file.
 ///
 /// Build with Decoder.[into_blocks].
@@ -48,9 +45,7 @@ pub struct Blocks<R: Read> {
     reader: R,
     /// Maximum image size in bytes
     max_image_sz: Option<usize>,
-    /// Data buffer
-    buffer: Vec<u8>,
-    /// Expected next block
+    /// Expected next block and size
     expected_next: Option<(BlockCode, usize)>,
     /// Size of image data
     image_sz: usize,
@@ -85,7 +80,6 @@ impl<R: Read> Blocks<R> {
         Blocks {
             reader,
             max_image_sz,
-            buffer: Vec::with_capacity(BUF_SZ),
             expected_next: Some((Header_, Header_.size())),
             image_sz: 0,
             done: false,
@@ -93,76 +87,52 @@ impl<R: Read> Blocks<R> {
         }
     }
 
-    /// Examine buffer for block code and size.
-    fn examine_buffer(&mut self) -> Result<(BlockCode, usize)> {
-        let code = *self
-            .buffer
-            .iter()
-            .next()
-            .ok_or(Error::UnexpectedEndOfFile)?;
-        let bc_sz = self.expected_next.take().or_else(|| {
-            match BlockCode::from_u8(code) {
-                Some(b) => Some((b, b.size())),
-                None => None,
+    /// Fill a buffer from reader
+    fn fill_buffer(&mut self, buffer: &mut [u8]) -> Result<()> {
+        let mut len = 0;
+        while len < buffer.len() {
+            match self.reader.read(&mut buffer[len..]) {
+                Ok(0) => return Err(Error::UnexpectedEndOfFile),
+                Ok(n) => len += n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => return Err(e.into()),
             }
-        });
-        match bc_sz {
-            Some(b) => {
-                self.expected_next = self.expected(b.0);
-                Ok(b)
-            }
-            None => Err(Error::InvalidBlockCode),
         }
+        Ok(())
     }
 
-    /// Get next expected block code and size
-    fn expected(&self, bc: BlockCode) -> Option<(BlockCode, usize)> {
+    /// Get the expected next block code and size
+    fn expected_next(&mut self, block: &Block) -> Option<(BlockCode, usize)> {
         use crate::block::BlockCode::*;
-        let buf = &self.buffer[..];
-        match bc {
-            Header_ => {
-                let sz = LogicalScreenDesc_.size();
-                Some((LogicalScreenDesc_, sz))
+        match block {
+            Block::Header(_) => {
+                Some((LogicalScreenDesc_, LogicalScreenDesc_.size()))
             }
-            LogicalScreenDesc_ => {
-                let sz = LogicalScreenDesc_.size();
-                if buf.len() >= sz {
-                    let buf = &buf[..sz];
-                    if let Ok(b) = LogicalScreenDesc::from_buf(buf) {
-                        let sz = b.color_table_config().size_bytes();
-                        if sz > 0 {
-                            return Some((GlobalColorTable_, sz));
-                        }
-                    }
+            Block::LogicalScreenDesc(b) => {
+                let sz = b.color_table_config().size_bytes();
+                if sz > 0 {
+                    Some((GlobalColorTable_, sz))
+                } else {
+                    None
                 }
-                None
             }
-            ImageDesc_ => {
-                let sz = ImageDesc_.size();
-                if buf.len() >= sz {
-                    let buf = &buf[..sz];
-                    if let Ok(b) = ImageDesc::from_buf(buf) {
-                        let sz = b.color_table_config().size_bytes();
-                        if sz > 0 {
-                            return Some((LocalColorTable_, sz));
-                        } else {
-                            return Some((ImageData_, ImageData_.size()));
-                        }
-                    }
+            Block::ImageDesc(b) => {
+                let sz = b.color_table_config().size_bytes();
+                if sz > 0 {
+                    Some((LocalColorTable_, sz))
+                } else {
+                    Some((ImageData_, ImageData_.size()))
                 }
-                None
             }
-            LocalColorTable_ => Some((ImageData_, ImageData_.size())),
-            Trailer_ => Some((Header_, Header_.size())),
+            Block::LocalColorTable(_) => Some((ImageData_, ImageData_.size())),
+            Block::Trailer(_) => Some((Header_, Header_.size())),
             _ => None,
         }
     }
 
     /// Decode the next block (including all sub-blocks).
     fn next_block(&mut self) -> Result<Block> {
-        self.fill_buffer()?;
-        let (bc, sz) = self.examine_buffer()?;
-        let mut block = self.decode_block(bc, sz)?;
+        let mut block = self.decode_block()?;
         if block.has_sub_blocks() {
             while self.decode_sub_block(&mut block)? {}
         }
@@ -181,50 +151,135 @@ impl<R: Read> Blocks<R> {
         Ok(())
     }
 
-    /// Fill the buffer from reader
-    fn fill_buffer(&mut self) -> Result<()> {
-        let mut len = self.buffer.len();
-        self.buffer.resize(BUF_SZ, 0);
-        while len < BUF_SZ {
-            match self.reader.read(&mut self.buffer[len..]) {
-                Ok(0) => break, // EOF
-                Ok(n) => len += n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
-                Err(e) => return Err(e.into()),
-            }
-        }
-        self.buffer.resize(len, 0);
-        Ok(())
-    }
-
     /// Decode one block
-    fn decode_block(&mut self, bc: BlockCode, sz: usize) -> Result<Block> {
-        let len = self.buffer.len();
-        if len >= sz {
-            debug!("  block  : {:?} {:?}", bc, sz);
-            let block = self.parse_block(bc, sz)?;
-            self.buffer.drain(..sz);
-            self.check_block_start(&block)?;
-            Ok(block)
-        } else {
-            Err(Error::UnexpectedEndOfFile)
+    fn decode_block(&mut self) -> Result<Block> {
+        let block = match self.expected_next {
+            Some((bc, sz)) => self.parse_expected(bc, sz)?,
+            None => self.parse_block()?,
+        };
+        self.expected_next = self.expected_next(&block);
+        self.check_block_start(&block)?;
+        Ok(block)
+    }
+
+    /// Parse an expected block
+    fn parse_expected(&mut self, bc: BlockCode, sz: usize) -> Result<Block> {
+        use crate::block::BlockCode::*;
+        match bc {
+            Header_ => self.parse_header(),
+            LogicalScreenDesc_ => self.parse_logical_screen_desc(),
+            GlobalColorTable_ => self.parse_global_color_table(sz),
+            LocalColorTable_ => self.parse_local_color_table(sz),
+            ImageData_ => self.parse_image_data(),
+            _ => Err(Error::InvalidBlockCode),
         }
     }
 
-    /// Parse a block in the buffer
-    fn parse_block(&self, bc: BlockCode, sz: usize) -> Result<Block> {
+    /// Parse a Header block
+    fn parse_header(&mut self) -> Result<Block> {
+        let mut buf = vec![0; BlockCode::Header_.size()];
+        self.fill_buffer(&mut buf)?;
+        if &buf[..3] == b"GIF" {
+            let version = [buf[3], buf[4], buf[5]];
+            match &version {
+                b"87a" | b"89a" => Ok(Header::with_version(version).into()),
+                _ => Err(Error::UnsupportedVersion(version)),
+            }
+        } else {
+            Err(Error::MalformedHeader)
+        }
+    }
+
+    /// Parse a Logical Screen Descriptor block
+    fn parse_logical_screen_desc(&mut self) -> Result<Block> {
+        let mut buf = vec![0; BlockCode::LogicalScreenDesc_.size()];
+        self.fill_buffer(&mut buf)?;
+        let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
+        let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
+        let flags = buf[4];
+        let bg_color = buf[5];
+        let aspect = buf[6];
+        Ok(LogicalScreenDesc::default()
+            .with_screen_width(width)
+            .with_screen_height(height)
+            .with_flags(flags)
+            .with_background_color_idx(bg_color)
+            .with_pixel_aspect_ratio(aspect)
+            .into())
+    }
+
+    /// Parse a Global Color Table block
+    fn parse_global_color_table(&mut self, sz: usize) -> Result<Block> {
+        let mut buf = vec![0; sz];
+        self.fill_buffer(&mut buf)?;
+        Ok(GlobalColorTable::with_colors(&buf).into())
+    }
+
+    /// Parse a Local Color Table block
+    fn parse_local_color_table(&mut self, sz: usize) -> Result<Block> {
+        let mut buf = vec![0; sz];
+        self.fill_buffer(&mut buf)?;
+        Ok(LocalColorTable::with_colors(&buf).into())
+    }
+
+    /// Parse an Image Data block
+    fn parse_image_data(&mut self) -> Result<Block> {
+        let mut buf = vec![0; BlockCode::ImageData_.size()];
+        self.fill_buffer(&mut buf)?;
+        let min_code_bits = buf[0];
+        let mut img_data = ImageData::new(self.image_sz);
+        img_data.set_min_code_bits(min_code_bits);
+        if img_data.min_code_bits() == min_code_bits {
+            Ok(img_data.into())
+        } else {
+            Err(Error::InvalidLzwCodeSize)
+        }
+    }
+
+    /// Parse a block
+    fn parse_block(&mut self) -> Result<Block> {
         use crate::block::BlockCode::*;
-        let buf = &self.buffer[..sz];
-        Ok(match bc {
-            Header_ => Header::from_buf(buf)?.into(),
-            LogicalScreenDesc_ => LogicalScreenDesc::from_buf(buf)?.into(),
-            GlobalColorTable_ => GlobalColorTable::from_buf(buf).into(),
-            Extension_ => Block::parse_extension(buf),
-            ImageDesc_ => ImageDesc::from_buf(buf)?.into(),
-            LocalColorTable_ => LocalColorTable::from_buf(buf).into(),
-            ImageData_ => ImageData::from_buf(self.image_sz, buf)?.into(),
-            Trailer_ => Trailer::default().into(),
+        let mut buf = [0; 1];
+        self.fill_buffer(&mut buf)?;
+        match BlockCode::from_u8(buf[0]) {
+            Some(Extension_) => self.parse_extension(),
+            Some(ImageDesc_) => self.parse_image_desc(),
+            Some(Trailer_) => Ok(Trailer::default().into()),
+            _ => Err(Error::InvalidBlockCode),
+        }
+    }
+
+    /// Parse an extension block
+    fn parse_extension(&mut self) -> Result<Block> {
+        use crate::block::ExtensionCode::*;
+        let mut buf = [0; 1];
+        self.fill_buffer(&mut buf)?;
+        let et: ExtensionCode = buf[0].into();
+        Ok(match et {
+            PlainText_ => PlainText::default().into(),
+            GraphicControl_ => GraphicControl::default().into(),
+            Comment_ => Comment::default().into(),
+            Application_ => Application::default().into(),
+            Unknown_(n) => Unknown::new(n).into(),
         })
+    }
+
+    /// Parse an Image Descriptor block
+    fn parse_image_desc(&mut self) -> Result<Block> {
+        let mut buf = vec![0; BlockCode::ImageDesc_.size() - 1];
+        self.fill_buffer(&mut buf)?;
+        let left = u16::from(buf[1]) << 8 | u16::from(buf[0]);
+        let top = u16::from(buf[3]) << 8 | u16::from(buf[2]);
+        let width = u16::from(buf[5]) << 8 | u16::from(buf[4]);
+        let height = u16::from(buf[7]) << 8 | u16::from(buf[6]);
+        let flags = buf[8];
+        Ok(ImageDesc::default()
+            .with_left(left)
+            .with_top(top)
+            .with_width(width)
+            .with_height(height)
+            .with_flags(flags)
+            .into())
     }
 
     /// Check start of block (before sub-blocks)
@@ -248,28 +303,25 @@ impl<R: Read> Blocks<R> {
 
     /// Decode one sub-block
     fn decode_sub_block(&mut self, block: &mut Block) -> Result<bool> {
-        self.fill_buffer()?;
-        let len = self.buffer.len();
+        let mut buf = [0; 256];
+        self.fill_buffer(&mut buf[..1])?;
+        let len = buf[0] as usize;
         if len > 0 {
-            let sz = usize::from(self.buffer[0]);
-            if len > sz {
-                let blk_sz = sz + 1;
-                if sz > 0 {
-                    debug!("sub-block: {:?} {:?}", block, sz);
-                    self.parse_sub_block(block, blk_sz)?;
-                }
-                self.buffer.drain(..blk_sz);
-                return Ok(sz > 0);
-            }
+            let blk_sz = len + 1;
+            self.fill_buffer(&mut buf[1..blk_sz])?;
+            debug!("sub-block: {:?} {:?}", block, blk_sz);
+            self.parse_sub_block(block, &buf[1..blk_sz])?;
         }
-        Err(Error::UnexpectedEndOfFile)
+        return Ok(len > 0);
     }
 
     /// Parse a sub-block in the buffer
-    fn parse_sub_block(&mut self, block: &mut Block, sz: usize) -> Result<()> {
-        debug_assert!(sz <= 256);
+    fn parse_sub_block(
+        &mut self,
+        block: &mut Block,
+        bytes: &[u8],
+    ) -> Result<()> {
         use crate::block::Block::*;
-        let bytes = &self.buffer[1..sz];
         match block {
             PlainText(b) => b.parse_sub_block(bytes),
             GraphicControl(b) => b.parse_sub_block(bytes)?,
@@ -283,86 +335,7 @@ impl<R: Read> Blocks<R> {
     }
 }
 
-impl Header {
-    /// Decode a Header block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self> {
-        assert_eq!(buf.len(), BlockCode::Header_.size());
-        if &buf[..3] == b"GIF" {
-            let version = [buf[3], buf[4], buf[5]];
-            match &version {
-                b"87a" | b"89a" => Ok(Header::with_version(version)),
-                _ => Err(Error::UnsupportedVersion(version)),
-            }
-        } else {
-            Err(Error::MalformedHeader)
-        }
-    }
-}
-
-impl LogicalScreenDesc {
-    /// Decode a Logical Screen Descriptor block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self> {
-        assert_eq!(buf.len(), BlockCode::LogicalScreenDesc_.size());
-        let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
-        let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
-        let flags = buf[4];
-        let bg_color = buf[5];
-        let aspect = buf[6];
-        Ok(LogicalScreenDesc::default()
-            .with_screen_width(width)
-            .with_screen_height(height)
-            .with_flags(flags)
-            .with_background_color_idx(bg_color)
-            .with_pixel_aspect_ratio(aspect))
-    }
-}
-
-impl GlobalColorTable {
-    /// Decode a Global Color Table block from a buffer
-    fn from_buf(buf: &[u8]) -> Self {
-        Self::with_colors(buf)
-    }
-}
-
-impl ImageDesc {
-    /// Decode an Image Descriptor block from a buffer
-    fn from_buf(buf: &[u8]) -> Result<Self> {
-        assert_eq!(buf.len(), BlockCode::ImageDesc_.size());
-        let left = u16::from(buf[2]) << 8 | u16::from(buf[1]);
-        let top = u16::from(buf[4]) << 8 | u16::from(buf[3]);
-        let width = u16::from(buf[6]) << 8 | u16::from(buf[5]);
-        let height = u16::from(buf[8]) << 8 | u16::from(buf[7]);
-        let flags = buf[9];
-        Ok(Self::default()
-            .with_left(left)
-            .with_top(top)
-            .with_width(width)
-            .with_height(height)
-            .with_flags(flags))
-    }
-}
-
-impl LocalColorTable {
-    /// Decode a Local Color Table block from a buffer
-    fn from_buf(buf: &[u8]) -> Self {
-        Self::with_colors(buf)
-    }
-}
-
 impl ImageData {
-    /// Decode an Image Data block from a buffer
-    fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self> {
-        assert_eq!(buf.len(), BlockCode::ImageData_.size());
-        let min_code_bits = buf[0];
-        let mut selfy = Self::new(image_sz);
-        selfy.set_min_code_bits(min_code_bits);
-        if selfy.min_code_bits() == min_code_bits {
-            Ok(selfy)
-        } else {
-            Err(Error::InvalidLzwCodeSize)
-        }
-    }
-
     /// Parse an Image Data block
     fn parse_sub_block(
         &mut self,
@@ -379,22 +352,6 @@ impl ImageData {
             return Ok(());
         }
         panic!("Invalid state in decode_image_data!");
-    }
-}
-
-impl Block {
-    /// Parse an extension block
-    fn parse_extension(buf: &[u8]) -> Self {
-        use crate::block::ExtensionCode::*;
-        assert_eq!(buf.len(), BlockCode::Extension_.size());
-        let et: ExtensionCode = buf[1].into();
-        match et {
-            PlainText_ => PlainText::default().into(),
-            GraphicControl_ => GraphicControl::default().into(),
-            Comment_ => Comment::default().into(),
-            Application_ => Application::default().into(),
-            Unknown_(n) => Unknown::new(n).into(),
-        }
     }
 }
 
