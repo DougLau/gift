@@ -7,7 +7,7 @@ use crate::block::*;
 use crate::error::{Error, Result};
 use crate::lzw::Decompressor;
 use crate::private::Step;
-use pix::{rgb::SRgba8, Raster};
+use pix::{rgb::SRgba8, Raster, Region};
 use std::io::{ErrorKind, Read};
 
 /// An Iterator for [Block]s within a GIF file.
@@ -691,27 +691,37 @@ fn update_raster(
         } else {
             return Err(Error::MissingColorTable);
         };
-        let trans_clr = frame.transparent_color();
-        let width = usize::from(frame.width());
-        let data = frame.image_data.data();
-        for (row, frow) in raster.rows_mut(reg).zip(data.chunks_exact(width)) {
-            for (p, fp) in row.iter_mut().zip(frow) {
-                let idx = *fp;
-                let i = 3 * idx as usize;
-                if i + 2 > clrs.len() {
-                    return Err(Error::InvalidColorIndex);
-                }
-                let entry = match trans_clr {
-                    Some(trans_idx) if trans_idx == idx => SRgba8::default(),
-                    _ => SRgba8::new(clrs[i], clrs[i + 1], clrs[i + 2], 255),
-                };
-                *p = entry;
-            }
-        }
-        Ok(())
+        update_frame(raster, reg, frame, clrs)
     } else {
         Err(Error::InvalidFrameDimensions)
     }
+}
+
+/// Update a region of a raster with a new frame
+fn update_frame(
+    raster: &mut Raster<SRgba8>,
+    reg: Region,
+    frame: &Frame,
+    clrs: &[u8],
+) -> Result<()> {
+    let trans_clr = frame.transparent_color();
+    let width = usize::from(frame.width());
+    let data = frame.image_data.data();
+    for (row, frow) in raster.rows_mut(reg).zip(data.chunks_exact(width)) {
+        for (p, fp) in row.iter_mut().zip(frow) {
+            let idx = *fp;
+            let i = 3 * idx as usize;
+            if i + 2 > clrs.len() {
+                return Err(Error::InvalidColorIndex);
+            }
+            let entry = match trans_clr {
+                Some(trans_idx) if trans_idx == idx => SRgba8::default(),
+                _ => SRgba8::new(clrs[i], clrs[i + 1], clrs[i + 2], 255),
+            };
+            *p = entry;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
