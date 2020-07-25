@@ -209,9 +209,13 @@ impl LocalColorTable {
 impl ImageData {
     /// Format an image data block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
-        w.write_all(&[self.min_code_bits()])?;
+        let min_code_bits =
+            next_high_bit(self.data().iter().copied().max().unwrap_or(0));
+        // minimum code bits must be between 2 and 12
+        let min_code_bits = 2.max(min_code_bits).min(12);
+        w.write_all(&[min_code_bits])?;
         let mut buffer = Vec::with_capacity(self.data().len());
-        let mut compressor = Compressor::new(self.min_code_bits());
+        let mut compressor = Compressor::new(min_code_bits);
         compressor.compress(self.data(), &mut buffer);
         // split buffer into sub-blocks
         for chunk in buffer.chunks(255) {
@@ -221,6 +225,11 @@ impl ImageData {
         }
         w.write_all(&[0]) // final sub-block size
     }
+}
+
+/// Get the high bit of a value
+fn next_high_bit(value: u8) -> u8 {
+    u32::from(value).next_power_of_two().trailing_zeros() as u8
 }
 
 impl Trailer {
@@ -440,4 +449,21 @@ fn make_color_table(palette: &Palette) -> (ColorTableConfig, Vec<u8>) {
         pal.push(0);
     }
     (tbl_cfg, pal)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn high_bits() {
+        assert_eq!(next_high_bit(2), 1);
+        assert_eq!(next_high_bit(3), 2);
+        assert_eq!(next_high_bit(4), 2);
+        assert_eq!(next_high_bit(5), 3);
+        assert_eq!(next_high_bit(7), 3);
+        assert_eq!(next_high_bit(8), 3);
+        assert_eq!(next_high_bit(9), 4);
+        assert_eq!(next_high_bit(16), 4);
+    }
 }

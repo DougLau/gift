@@ -172,11 +172,9 @@ impl<R: Read> Blocks<R> {
         let mut buf = vec![0; BlockCode::ImageData_.size()];
         self.fill_buffer(&mut buf)?;
         let min_code_bits = buf[0];
-        let mut img_data = ImageData::new(self.image_sz);
-        img_data.set_min_code_bits(min_code_bits);
-        if img_data.min_code_bits() == min_code_bits {
+        if 2 <= min_code_bits && min_code_bits <= 12 {
             self.decompressor = Some(Decompressor::new(min_code_bits));
-            Ok(img_data.into())
+            Ok(ImageData::new(self.image_sz).into())
         } else {
             Err(Error::InvalidLzwCodeSize)
         }
@@ -331,10 +329,10 @@ impl ImageData {
     ) -> Result<()> {
         if let Some(ref mut dec) = decompressor {
             let image_sz = self.image_sz();
-            dec.decompress(bytes, self.buffer_mut())?;
-            if self.buffer_mut().len() > image_sz {
-                warn!("Extra image data: {:?}", &self.buffer_mut()[image_sz..]);
-                self.buffer_mut().truncate(image_sz);
+            dec.decompress(bytes, self.data_mut())?;
+            if self.data_mut().len() > image_sz {
+                warn!("Extra image data: {:?}", &self.data_mut()[image_sz..]);
+                self.data_mut().truncate(image_sz);
             }
             return Ok(());
         }
@@ -778,7 +776,7 @@ mod test {
         match dec.next() {
             Some(Ok(Block::ImageData(b))) => {
                 let mut d = ImageData::new(100);
-                d.add_data(IMAGE_1);
+                d.data_mut().extend(IMAGE_1);
                 assert_eq!(b, d);
             }
             _ => panic!(),

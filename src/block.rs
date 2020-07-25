@@ -879,8 +879,7 @@ impl LocalColorTable {
 /// An image data block contains image data for one frame.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImageData {
-    /// Image data in uncompressed form; first byte is LZW minimum code size.
-    /// Within GIF files, this data is compressed using LZW.
+    /// Image data in uncompressed form.
     data: Vec<u8>,
 }
 
@@ -888,10 +887,7 @@ impl From<&Raster<Gray8>> for ImageData {
     fn from(raster: &Raster<Gray8>) -> Self {
         let buf = raster.as_u8_slice();
         let mut image_data = ImageData::new(buf.len());
-        image_data.add_data(buf);
-        if let Some(max_index) = buf.iter().copied().max() {
-            image_data.set_min_code_bits(next_high_bit(max_index));
-        }
+        image_data.data_mut().extend(buf);
         image_data
     }
 }
@@ -899,9 +895,7 @@ impl From<&Raster<Gray8>> for ImageData {
 impl ImageData {
     /// Create a new image data block
     pub fn new(image_sz: usize) -> Self {
-        // Reserve an extra byte for min_code_bits (first)
-        let mut data = Vec::with_capacity(image_sz + 1);
-        data.push(2); // LZW minimum code bits
+        let data = Vec::with_capacity(image_sz);
         ImageData { data }
     }
 
@@ -915,45 +909,15 @@ impl ImageData {
         self.data.len() == self.data.capacity()
     }
 
-    /// Get a mutable reference to the buffer
-    pub fn buffer_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.data
-    }
-
-    /// Add data to the image
-    pub fn add_data(&mut self, data: &[u8]) {
-        let rem = self.image_sz() - self.data.len();
-        let data = if data.len() > rem {
-            warn!("Extra image data: {:?}", &data[rem..]);
-            &data[..rem]
-        } else {
-            data
-        };
-        self.data.extend_from_slice(data);
-    }
-
-    /// Set the minimum code bits
-    pub fn set_min_code_bits(&mut self, min_code_bits: u8) {
-        // minimum code bits must be between 2 and 12
-        self.data[0] = 2.max(min_code_bits).min(12);
-    }
-
-    /// Get the minimum code bits
-    pub fn min_code_bits(&self) -> u8 {
-        // first byte must contain min_code_bits
-        self.data[0]
-    }
-
     /// Get the image data
     pub fn data(&self) -> &[u8] {
-        // Skip the LZW minimum code size
-        &self.data[1..]
+        &self.data
     }
-}
 
-/// Get the high bit of a value
-fn next_high_bit(value: u8) -> u8 {
-    u32::from(value).next_power_of_two().trailing_zeros() as u8
+    /// Get a mutable reference to the image data
+    pub fn data_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.data
+    }
 }
 
 /// The trailer block indicates the end of a GIF file.
@@ -1251,17 +1215,5 @@ mod test {
         assert_eq!(b.loop_count(), Some(0));
         let b = Application::with_loop_count(4);
         assert_eq!(b.loop_count(), Some(4));
-    }
-
-    #[test]
-    fn high_bits() {
-        assert_eq!(next_high_bit(2), 1);
-        assert_eq!(next_high_bit(3), 2);
-        assert_eq!(next_high_bit(4), 2);
-        assert_eq!(next_high_bit(5), 3);
-        assert_eq!(next_high_bit(7), 3);
-        assert_eq!(next_high_bit(8), 3);
-        assert_eq!(next_high_bit(9), 4);
-        assert_eq!(next_high_bit(16), 4);
     }
 }
