@@ -333,6 +333,7 @@ impl ImageData {
             if self.data_mut().len() > image_sz {
                 warn!("Extra image data: {:?}", &self.data_mut()[image_sz..]);
                 self.data_mut().truncate(image_sz);
+                self.data_mut().shrink_to_fit();
             }
             return Ok(());
         }

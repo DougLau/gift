@@ -380,6 +380,9 @@ impl Decompressor {
             }
             bytes = &bytes[consumed..];
         }
+        while let Some(code) = self.code() {
+            self.decompress_code(code, buffer)?;
+        }
         Ok(())
     }
 
