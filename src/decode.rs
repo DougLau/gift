@@ -87,49 +87,6 @@ impl<R: Read> Blocks<R> {
         }
     }
 
-    /// Fill a buffer from reader
-    fn fill_buffer(&mut self, buffer: &mut [u8]) -> Result<()> {
-        let mut len = 0;
-        while len < buffer.len() {
-            match self.reader.read(&mut buffer[len..]) {
-                Ok(0) => return Err(Error::UnexpectedEndOfFile),
-                Ok(n) => len += n,
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
-                Err(e) => return Err(e.into()),
-            }
-        }
-        Ok(())
-    }
-
-    /// Get the expected next block code and size
-    fn expected_next(&mut self, block: &Block) -> Option<(BlockCode, usize)> {
-        use crate::block::BlockCode::*;
-        match block {
-            Block::Header(_) => {
-                Some((LogicalScreenDesc_, LogicalScreenDesc_.size()))
-            }
-            Block::LogicalScreenDesc(b) => {
-                let sz = b.color_table_config().size_bytes();
-                if sz > 0 {
-                    Some((GlobalColorTable_, sz))
-                } else {
-                    None
-                }
-            }
-            Block::ImageDesc(b) => {
-                let sz = b.color_table_config().size_bytes();
-                if sz > 0 {
-                    Some((LocalColorTable_, sz))
-                } else {
-                    Some((ImageData_, ImageData_.size()))
-                }
-            }
-            Block::LocalColorTable(_) => Some((ImageData_, ImageData_.size())),
-            Block::Trailer(_) => Some((Header_, Header_.size())),
-            _ => None,
-        }
-    }
-
     /// Decode the next block (including all sub-blocks).
     fn next_block(&mut self) -> Result<Block> {
         let mut block = self.decode_block()?;
@@ -138,17 +95,6 @@ impl<R: Read> Blocks<R> {
         }
         self.check_block_end(&block)?;
         Ok(block)
-    }
-
-    /// Check end of block (after sub-blocks)
-    fn check_block_end(&mut self, block: &Block) -> Result<()> {
-        if let Block::ImageData(b) = block {
-            self.decompressor = None;
-            if !b.is_complete() {
-                return Err(Error::IncompleteImageData);
-            }
-        }
-        Ok(())
     }
 
     /// Decode one block
@@ -280,6 +226,60 @@ impl<R: Read> Blocks<R> {
             .with_height(height)
             .with_flags(flags)
             .into())
+    }
+
+    /// Fill a buffer from reader
+    fn fill_buffer(&mut self, buffer: &mut [u8]) -> Result<()> {
+        let mut len = 0;
+        while len < buffer.len() {
+            match self.reader.read(&mut buffer[len..]) {
+                Ok(0) => return Err(Error::UnexpectedEndOfFile),
+                Ok(n) => len += n,
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok(())
+    }
+
+    /// Get the expected next block code and size
+    fn expected_next(&mut self, block: &Block) -> Option<(BlockCode, usize)> {
+        use crate::block::BlockCode::*;
+        match block {
+            Block::Header(_) => {
+                Some((LogicalScreenDesc_, LogicalScreenDesc_.size()))
+            }
+            Block::LogicalScreenDesc(b) => {
+                let sz = b.color_table_config().size_bytes();
+                if sz > 0 {
+                    Some((GlobalColorTable_, sz))
+                } else {
+                    None
+                }
+            }
+            Block::ImageDesc(b) => {
+                let sz = b.color_table_config().size_bytes();
+                if sz > 0 {
+                    Some((LocalColorTable_, sz))
+                } else {
+                    Some((ImageData_, ImageData_.size()))
+                }
+            }
+            Block::LocalColorTable(_) => Some((ImageData_, ImageData_.size())),
+            Block::Trailer(_) => Some((Header_, Header_.size())),
+            _ => None,
+        }
+    }
+
+    /// Check end of block (after sub-blocks)
+    fn check_block_end(&mut self, block: &Block) -> Result<()> {
+        if let Block::ImageData(b) = block {
+            self.decompressor = None;
+            if !b.is_complete() {
+                return Err(Error::IncompleteImageData);
+            }
+        }
+        Ok(())
     }
 
     /// Check start of block (before sub-blocks)
