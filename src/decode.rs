@@ -93,7 +93,7 @@ impl<R: Read> Blocks<R> {
         if block.has_sub_blocks() {
             while self.decode_sub_block(&mut block)? {}
         }
-        self.check_block_end(&block)?;
+        self.check_block_end(&mut block)?;
         Ok(block)
     }
 
@@ -276,11 +276,11 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Check end of block (after sub-blocks)
-    fn check_block_end(&mut self, block: &Block) -> Result<()> {
-        if let Block::ImageData(b) = block {
-            self.decompressor = None;
-            if !b.is_complete() {
-                return Err(Error::IncompleteImageData);
+    fn check_block_end(&mut self, block: &mut Block) -> Result<()> {
+        if let Block::ImageData(ref mut b) = block {
+            match self.decompressor.take() {
+                Some(decompressor) => b.finish(decompressor, self.image_sz)?,
+                _ => panic!("Invalid state in check_block_end!"),
             }
         }
         Ok(())
@@ -328,16 +328,29 @@ impl ImageData {
         decompressor: &mut Option<Decompressor>,
     ) -> Result<()> {
         if let Some(ref mut dec) = decompressor {
-            let image_sz = self.image_sz();
             dec.decompress(bytes, self.data_mut())?;
-            if self.data_mut().len() > image_sz {
-                warn!("Extra image data: {:?}", &self.data_mut()[image_sz..]);
-                self.data_mut().truncate(image_sz);
-                self.data_mut().shrink_to_fit();
-            }
             return Ok(());
         }
         panic!("Invalid state in decode_image_data!");
+    }
+
+    /// Finish LZW decompression
+    fn finish(
+        &mut self,
+        mut decompressor: Decompressor,
+        image_sz: usize,
+    ) -> Result<()> {
+        decompressor.decompress_finish(self.data_mut())?;
+        if self.data_mut().len() > image_sz {
+            warn!("Extra image data: {:?}", &self.data_mut()[image_sz..]);
+            self.data_mut().truncate(image_sz);
+            self.data_mut().shrink_to_fit();
+        }
+        if self.data().len() == image_sz {
+            return Ok(());
+        } else {
+            return Err(Error::IncompleteImageData);
+        }
     }
 }
 

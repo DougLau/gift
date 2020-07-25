@@ -899,16 +899,6 @@ impl ImageData {
         ImageData { data }
     }
 
-    /// Get the image size (bytes)
-    pub fn image_sz(&self) -> usize {
-        self.data.capacity()
-    }
-
-    /// Check if the image data is complete
-    pub fn is_complete(&self) -> bool {
-        self.data.len() == self.data.capacity()
-    }
-
     /// Get the image data
     pub fn data(&self) -> &[u8] {
         &self.data

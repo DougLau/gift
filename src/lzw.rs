@@ -380,6 +380,11 @@ impl Decompressor {
             }
             bytes = &bytes[consumed..];
         }
+        Ok(())
+    }
+
+    /// Finish Decompress
+    pub fn decompress_finish(&mut self, buffer: &mut Vec<u8>) -> Result<()> {
         while let Some(code) = self.code() {
             self.decompress_code(code, buffer)?;
         }
