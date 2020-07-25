@@ -106,12 +106,12 @@ impl PlainText {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::PlainText_.into()])?;
         for b in self.sub_blocks() {
-            assert!(b.len() < 256);
+            debug_assert!(b.len() < 256);
             let len = b.len() as u8;
-            w.write_all(&[len])?; // block size
+            w.write_all(&[len])?; // sub-block size
             w.write_all(b)?;
         }
-        w.write_all(&[0]) // block size
+        w.write_all(&[0]) // final sub-block size
     }
 }
 
@@ -138,12 +138,12 @@ impl Comment {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Comment_.into()])?;
         for c in self.comments() {
-            assert!(c.len() < 256);
+            debug_assert!(c.len() < 256);
             let len = c.len() as u8;
-            w.write_all(&[len])?; // block size
+            w.write_all(&[len])?; // sub-block size
             w.write_all(c)?;
         }
-        w.write_all(&[0]) // block size
+        w.write_all(&[0]) // final sub-block size
     }
 }
 
@@ -153,12 +153,12 @@ impl Application {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Application_.into()])?;
         for c in self.app_data() {
-            assert!(c.len() < 256);
+            debug_assert!(c.len() < 256);
             let len = c.len() as u8;
-            w.write_all(&[len])?; // block size
+            w.write_all(&[len])?; // sub-block size
             w.write_all(c)?;
         }
-        w.write_all(&[0]) // block size
+        w.write_all(&[0]) // final sub-block size
     }
 }
 
@@ -168,12 +168,12 @@ impl Unknown {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(self.ext_id())?;
         for c in self.sub_blocks() {
-            assert!(c.len() < 256);
+            debug_assert!(c.len() < 256);
             let len = c.len() as u8;
-            w.write_all(&[len])?; // block size
+            w.write_all(&[len])?; // sub-block size
             w.write_all(c)?;
         }
-        w.write_all(&[0]) // block size
+        w.write_all(&[0]) // final sub-block size
     }
 }
 
@@ -210,63 +210,16 @@ impl ImageData {
     /// Format an image data block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(&[self.min_code_bits()])?;
-        self.format_block(w)?;
-        w.write_all(&[0])
-    }
-
-    /// Format the entire "block" (including sub-blocks)
-    fn format_block<W: Write>(&self, mut w: &mut W) -> io::Result<()> {
         let mut buffer = Vec::with_capacity(self.data().len());
         let mut compressor = Compressor::new(self.min_code_bits());
         compressor.compress(self.data(), &mut buffer);
-        let mut bw = BlockWriter::new(&mut w);
-        bw.write_all(&buffer)?;
-        bw.flush()
-    }
-}
-
-/// Block / sub-block writer
-struct BlockWriter<'a, W: Write> {
-    /// Writer for blocks
-    writer: &'a mut W,
-    /// Block buffer
-    buf: Vec<u8>,
-}
-
-impl<'a, W: Write> BlockWriter<'a, W> {
-    /// Create a new block writer
-    fn new(writer: &'a mut W) -> Self {
-        let buf = Vec::with_capacity(256);
-        BlockWriter { writer, buf }
-    }
-}
-
-impl<'a, W: Write> Write for BlockWriter<'a, W> {
-    /// Write a buffer
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let remaining = 0xFF - self.buf.len();
-        let consumed = remaining.min(buf.len());
-        self.buf.extend_from_slice(&buf[..consumed]);
-        if self.buf.len() == 0xFF {
-            // Technically, we're only supposed to make one attempt to write to
-            // the wrapped writer.  Since we're adding the 0xFF length
-            // at the beginning, we can't allow writes to be split up.
-            self.writer.write_all(&[0xFF])?;
-            self.writer.write_all(&self.buf)?;
-            self.buf.clear();
+        // split buffer into sub-blocks
+        for chunk in buffer.chunks(255) {
+            let len = chunk.len() as u8;
+            w.write_all(&[len])?; // sub-block size
+            w.write_all(&chunk)?;
         }
-        Ok(consumed)
-    }
-
-    /// Flush data remaining in the buffer
-    fn flush(&mut self) -> io::Result<()> {
-        let len = self.buf.len();
-        if len > 0 {
-            self.writer.write_all(&[len as u8])?;
-            self.writer.write_all(&self.buf[..len])?;
-            self.buf.clear();
-        }
-        Ok(())
+        w.write_all(&[0]) // final sub-block size
     }
 }
 
