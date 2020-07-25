@@ -104,7 +104,6 @@ impl<R: Read> Blocks<R> {
             None => self.parse_block()?,
         };
         self.expected_next = self.expected_next(&block);
-        self.check_block_start(&block)?;
         Ok(block)
     }
 
@@ -176,6 +175,7 @@ impl<R: Read> Blocks<R> {
         let mut img_data = ImageData::new(self.image_sz);
         img_data.set_min_code_bits(min_code_bits);
         if img_data.min_code_bits() == min_code_bits {
+            self.decompressor = Some(Decompressor::new(min_code_bits));
             Ok(img_data.into())
         } else {
             Err(Error::InvalidLzwCodeSize)
@@ -219,13 +219,19 @@ impl<R: Read> Blocks<R> {
         let width = u16::from(buf[5]) << 8 | u16::from(buf[4]);
         let height = u16::from(buf[7]) << 8 | u16::from(buf[6]);
         let flags = buf[8];
-        Ok(ImageDesc::default()
+        let b = ImageDesc::default()
             .with_left(left)
             .with_top(top)
             .with_width(width)
             .with_height(height)
-            .with_flags(flags)
-            .into())
+            .with_flags(flags);
+        self.image_sz = b.image_sz();
+        if let Some(sz) = self.max_image_sz {
+            if self.image_sz > sz {
+                return Err(Error::TooLargeImage);
+            }
+        }
+        Ok(b.into())
     }
 
     /// Fill a buffer from reader
@@ -278,25 +284,6 @@ impl<R: Read> Blocks<R> {
             if !b.is_complete() {
                 return Err(Error::IncompleteImageData);
             }
-        }
-        Ok(())
-    }
-
-    /// Check start of block (before sub-blocks)
-    fn check_block_start(&mut self, block: &Block) -> Result<()> {
-        match block {
-            Block::ImageDesc(b) => {
-                self.image_sz = b.image_sz();
-                if let Some(sz) = self.max_image_sz {
-                    if self.image_sz > sz {
-                        return Err(Error::TooLargeImage);
-                    }
-                }
-            }
-            Block::ImageData(b) => {
-                self.decompressor = Some(Decompressor::new(b.min_code_bits()));
-            }
-            _ => {}
         }
         Ok(())
     }
