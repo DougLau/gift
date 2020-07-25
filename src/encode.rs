@@ -209,7 +209,7 @@ impl LocalColorTable {
 impl ImageData {
     /// Format an image data block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
-        w.write_all(&[self.min_code_size()])?;
+        w.write_all(&[self.min_code_bits()])?;
         self.format_block(w)?;
         w.write_all(&[0])
     }
@@ -217,7 +217,7 @@ impl ImageData {
     /// Format the entire "block" (including sub-blocks)
     fn format_block<W: Write>(&self, mut w: &mut W) -> io::Result<()> {
         let mut buffer = Vec::with_capacity(self.data().len());
-        let mut compressor = Compressor::new(self.min_code_size());
+        let mut compressor = Compressor::new(self.min_code_bits());
         compressor.compress(self.data(), &mut buffer);
         let mut bw = BlockWriter::new(&mut w);
         bw.write_all(&buffer)?;

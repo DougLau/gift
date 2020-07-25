@@ -890,7 +890,7 @@ impl From<&Raster<Gray8>> for ImageData {
         let mut image_data = ImageData::new(buf.len());
         image_data.add_data(buf);
         if let Some(max_index) = buf.iter().copied().max() {
-            image_data.set_min_code_size(next_high_bit(max_index));
+            image_data.set_min_code_bits(next_high_bit(max_index));
         }
         image_data
     }
@@ -899,16 +899,15 @@ impl From<&Raster<Gray8>> for ImageData {
 impl ImageData {
     /// Create a new image data block
     pub fn new(image_sz: usize) -> Self {
-        // Reserve an extra byte for min_code_size (first)
+        // Reserve an extra byte for min_code_bits (first)
         let mut data = Vec::with_capacity(image_sz + 1);
-        data.push(2); // LZW minimum code size
+        data.push(2); // LZW minimum code bits
         ImageData { data }
     }
 
     /// Get the image size (bytes)
     pub fn image_sz(&self) -> usize {
         self.data.capacity()
-    }
     }
 
     /// Check if the image data is complete
@@ -933,15 +932,15 @@ impl ImageData {
         self.data.extend_from_slice(data);
     }
 
-    /// Set the minimum code size
-    pub fn set_min_code_size(&mut self, min_code_size: u8) {
-        // minimum code size must be between 2 and 12
-        self.data[0] = 2.max(min_code_size).min(12);
+    /// Set the minimum code bits
+    pub fn set_min_code_bits(&mut self, min_code_bits: u8) {
+        // minimum code bits must be between 2 and 12
+        self.data[0] = 2.max(min_code_bits).min(12);
     }
 
-    /// Get the minimum code size
-    pub fn min_code_size(&self) -> u8 {
-        // first byte must contain min_code_size
+    /// Get the minimum code bits
+    pub fn min_code_bits(&self) -> u8 {
+        // first byte must contain min_code_bits
         self.data[0]
     }
 

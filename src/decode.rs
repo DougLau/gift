@@ -239,7 +239,7 @@ impl<R: Read> Blocks<R> {
                 }
             }
             Block::ImageData(b) => {
-                self.decompressor = Some(Decompressor::new(b.min_code_size()));
+                self.decompressor = Some(Decompressor::new(b.min_code_bits()));
             }
             _ => {}
         }
@@ -354,7 +354,8 @@ impl ImageData {
     fn from_buf(image_sz: usize, buf: &[u8]) -> Result<Self> {
         assert_eq!(buf.len(), BlockCode::ImageData_.size());
         let min_code_bits = buf[0];
-        let selfy = Self::new(image_sz, min_code_bits);
+        let mut selfy = Self::new(image_sz);
+        selfy.set_min_code_bits(min_code_bits);
         if selfy.min_code_bits() == min_code_bits {
             Ok(selfy)
         } else {
