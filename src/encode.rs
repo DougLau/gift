@@ -46,10 +46,28 @@ impl<W: Write> BlockEnc<W> {
             Unknown(b) => b.format(&mut w),
             ImageDesc(b) => b.format(&mut w),
             LocalColorTable(b) => b.format(&mut w),
-            ImageData(b) => b.format(&mut w),
+            ImageData(b) => self.encode_image_data(b.data()),
             Trailer(b) => b.format(&mut w),
         }?;
         Ok(())
+    }
+
+    pub fn encode_image_data(&mut self, data: &[u8]) -> io::Result<()> {
+        let min_code_bits =
+            next_high_bit(data.iter().copied().max().unwrap_or(0));
+        // minimum code bits must be between 2 and 12
+        let min_code_bits = 2.max(min_code_bits).min(12);
+        self.writer.write_all(&[min_code_bits])?;
+        let mut buffer = Vec::with_capacity(data.len());
+        let mut compressor = Compressor::new(min_code_bits);
+        compressor.compress(data, &mut buffer);
+        // split buffer into sub-blocks
+        for chunk in buffer.chunks(255) {
+            let len = chunk.len() as u8;
+            self.writer.write_all(&[len])?; // sub-block size
+            self.writer.write_all(&chunk)?;
+        }
+        self.writer.write_all(&[0]) // final sub-block size
     }
 }
 
@@ -203,27 +221,6 @@ impl LocalColorTable {
     /// Format a local color table block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(self.colors())
-    }
-}
-
-impl ImageData {
-    /// Format an image data block
-    fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
-        let min_code_bits =
-            next_high_bit(self.data().iter().copied().max().unwrap_or(0));
-        // minimum code bits must be between 2 and 12
-        let min_code_bits = 2.max(min_code_bits).min(12);
-        w.write_all(&[min_code_bits])?;
-        let mut buffer = Vec::with_capacity(self.data().len());
-        let mut compressor = Compressor::new(min_code_bits);
-        compressor.compress(self.data(), &mut buffer);
-        // split buffer into sub-blocks
-        for chunk in buffer.chunks(255) {
-            let len = chunk.len() as u8;
-            w.write_all(&[len])?; // sub-block size
-            w.write_all(&chunk)?;
-        }
-        w.write_all(&[0]) // final sub-block size
     }
 }
 
