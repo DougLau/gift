@@ -839,9 +839,12 @@ mod test {
             blu, blu, blu, blu, blu, red, red, red, red, red,
             blu, blu, blu, blu, blu, red, red, red, red, red,
         ][..];
+        let mut n_frames = 0;
         for step in Decoder::new(GIF_1) {
             assert_eq!(step?.raster().pixels(), image);
+            n_frames += 1;
         }
+        assert_eq!(n_frames, 1);
         Ok(())
     }
 
