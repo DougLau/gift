@@ -16,6 +16,7 @@ pub(crate) enum StepRaster {
 }
 
 /// One step of an animation.
+#[derive(Clone)]
 pub struct Step {
     /// Raster of the animation step
     pub(crate) raster: StepRaster,
@@ -66,6 +67,19 @@ pub struct Decoder<R: Read> {
     reader: R,
     /// Maximum image size, in bytes
     max_image_sz: Option<usize>,
+}
+
+impl Clone for StepRaster {
+    fn clone(&self) -> Self {
+        match self {
+            StepRaster::TrueColor(r) => {
+                StepRaster::TrueColor(Raster::with_raster(r))
+            }
+            StepRaster::Indexed(r, p) => {
+                StepRaster::Indexed(Raster::with_raster(r), p.clone())
+            }
+        }
+    }
 }
 
 impl Step {
@@ -156,9 +170,9 @@ impl<R: Read> Decoder<R> {
         decode::Frames::new(self.into_blocks())
     }
 
-    /// Convert into a step `Iterator`.
+    /// Convert into a step `Iterator` without looping.
     pub fn into_steps(self) -> decode::Steps<R> {
-        decode::Steps::new(self.into_frames())
+        decode::Steps::new_once(self.into_frames())
     }
 }
 
@@ -166,9 +180,9 @@ impl<R: Read> IntoIterator for Decoder<R> {
     type Item = Result<Step>;
     type IntoIter = decode::Steps<R>;
 
-    /// Convert into a raster step `Iterator`
+    /// Convert into a step `Iterator` with looping
     fn into_iter(self) -> Self::IntoIter {
-        self.into_steps()
+        decode::Steps::new_looping(self.into_frames())
     }
 }
 

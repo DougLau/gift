@@ -620,7 +620,9 @@ impl Application {
         app_id == b"NETSCAPE2.0" || app_id == b"ANIMEXTS1.0"
     }
 
-    /// Create a new application block with specified loop count
+    /// Create a new application block with specified loop count.
+    ///
+    /// Use zero to loop forever.
     pub fn with_loop_count(loop_count: u16) -> Self {
         let mut app_data = vec![];
         app_data.push(b"NETSCAPE2.0".to_vec());
@@ -642,7 +644,10 @@ impl Application {
         &self.app_data
     }
 
-    /// Get the loop count, if applicable
+    /// Get the loop count, if applicable.
+    ///
+    /// Loop count is the number of times to repeat animation.  Some(0) means
+    /// to loop forever.
     pub fn loop_count(&self) -> Option<u16> {
         // NOTE: this block must follow immediately after GlobalColorTable
         //       (or LogicalScreenDesc if there is no GlobalColorTable).
@@ -652,7 +657,6 @@ impl Application {
                      d[1].len() == 3 &&         // app data sub-block length
                      d[1][0] == 1; // sub-block ID
         if exists {
-            // Number of times to loop animation (zero means loop forever)
             Some(u16::from(d[1][1]) << 8 | u16::from(d[1][2]))
         } else {
             None

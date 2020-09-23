@@ -563,9 +563,43 @@ impl<R: Read> Frames<R> {
     }
 }
 
+/// A step iterator which returns each Step only once.
+struct StepsOnce<R: Read> {
+    /// Frame decoder
+    frames: Frames<R>,
+    /// Global color table block
+    global_color_table: Option<GlobalColorTable>,
+    /// Loop count extension block
+    loop_count_ext: Option<Application>,
+    /// Current raster of animation
+    raster: Option<Raster<SRgba8>>,
+}
+
+/// A step iterator which repeats the animation.
+struct StepsLooping {
+    /// Decoding error
+    err: Option<Error>,
+    /// All steps from animation
+    steps: Vec<Step>,
+    /// Loop count (Some(0) is forever)
+    loop_count: Option<u16>,
+    /// Current step number
+    step_n: usize,
+}
+
+/// Steps iterator which can be once or looping
+enum StepsInner<R: Read> {
+    /// Iterate only once
+    Once(StepsOnce<R>),
+    /// Loop steps more than once
+    Looping(StepsLooping),
+}
+
 /// An Iterator for [Step]s within a GIF file.
 ///
-/// Build with Decoder.[into_iter] (or [into_steps]).
+/// It can be build in two ways:
+/// * Decoder.[into_steps]: iterates steps only once.
+/// * Decoder.[into_iter]: iterates steps and repeats using GIF loop count.
 ///
 /// ## Example: Get the last raster in a GIF animation
 /// ```
@@ -593,15 +627,11 @@ impl<R: Read> Frames<R> {
 /// [Step]: ../struct.Step.html
 ///
 pub struct Steps<R: Read> {
-    /// Frame decoder
-    frames: Frames<R>,
-    /// Global color table block
-    global_color_table: Option<GlobalColorTable>,
-    /// Current raster of animation
-    raster: Option<Raster<SRgba8>>,
+    /// Inner iterator; either Once or Looping
+    inner: StepsInner<R>,
 }
 
-impl<R: Read> Iterator for Steps<R> {
+impl<R: Read> Iterator for StepsOnce<R> {
     type Item = Result<Step>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -617,12 +647,13 @@ impl<R: Read> Iterator for Steps<R> {
     }
 }
 
-impl<R: Read> Steps<R> {
-    /// Create a new raster step decoder
-    pub(crate) fn new(frames: Frames<R>) -> Self {
-        Steps {
+impl<R: Read> StepsOnce<R> {
+    /// Create a new step iterator
+    fn new(frames: Frames<R>) -> Self {
+        StepsOnce {
             frames,
             global_color_table: None,
+            loop_count_ext: None,
             raster: None,
         }
     }
@@ -631,6 +662,7 @@ impl<R: Read> Steps<R> {
     fn make_raster(&mut self) -> Result<()> {
         if let Some(mut p) = self.frames.preamble()? {
             self.global_color_table = p.global_color_table.take();
+            self.loop_count_ext = p.loop_count_ext.take();
             let w = p.screen_width().into();
             let h = p.screen_height().into();
             self.raster = Some(Raster::with_clear(w, h));
@@ -722,6 +754,95 @@ fn update_frame(
         }
     }
     Ok(())
+}
+
+impl Iterator for StepsLooping {
+    type Item = Result<Step>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(err) = self.err.take() {
+            return Some(Err(err));
+        }
+        if let Some(step) = self.steps.get(self.step_n) {
+            self.step_n += 1;
+            Some(Ok(step.clone()))
+        } else {
+            if let Some(loop_count) = self.loop_count {
+                if loop_count > 1 {
+                    self.loop_count = Some(loop_count - 1);
+                } else if loop_count == 1 {
+                    self.loop_count = None;
+                }
+                if let Some(step) = self.steps.get(0) {
+                    self.step_n = 1;
+                    Some(Ok(step.clone()))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl StepsLooping {
+    /// Create a new looping step iterator
+    fn new<R: Read>(frames: Frames<R>) -> Self {
+        let mut once = StepsOnce::new(frames);
+        let mut this = StepsLooping {
+            err: None,
+            steps: vec![],
+            loop_count: None,
+            step_n: 0,
+        };
+        if let Some(res) = once.next() {
+            this.push_step(res);
+        }
+        // Loop count is only available after first step is read
+        if let Some(ref lp) = once.loop_count_ext {
+            this.loop_count = lp.loop_count();
+        }
+        for res in once {
+            this.push_step(res);
+        }
+        this
+    }
+
+    /// Push one step
+    fn push_step(&mut self, res: Result<Step>) {
+        match res {
+            Ok(step) => self.steps.push(step),
+            Err(e) => self.err = Some(e),
+        }
+    }
+}
+
+impl<R: Read> Iterator for Steps<R> {
+    type Item = Result<Step>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.inner {
+            StepsInner::Once(s) => s.next(),
+            StepsInner::Looping(s) => s.next(),
+        }
+    }
+}
+
+impl<R: Read> Steps<R> {
+    /// Create a new step decoder without looping
+    pub(crate) fn new_once(frames: Frames<R>) -> Self {
+        let once = StepsOnce::new(frames);
+        let inner = StepsInner::Once(once);
+        Steps { inner }
+    }
+
+    /// Create a new step decoder with looping
+    pub(crate) fn new_looping(frames: Frames<R>) -> Self {
+        let looping = StepsLooping::new(frames);
+        let inner = StepsInner::Looping(looping);
+        Steps { inner }
+    }
 }
 
 #[cfg(test)]

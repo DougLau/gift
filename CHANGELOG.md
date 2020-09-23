@@ -5,6 +5,7 @@
 ### Changed
 * `Decoder::new` and `Encoder::new` are now unbuffered
 * Replaced lzw crate usage with new, faster implmentatiton
+* `Decoder::into_iter()` repeats Steps using GIF animation loop count
 
 ## [0.9.0] - 2020-06-04
 ### Added
