@@ -32,7 +32,7 @@ fn decode_steps(crit: &mut Criterion) {
     crit.bench_function("decode_steps", |b| {
         b.iter(|| {
             let decoder = Decoder::new(Cursor::new(black_box(LOGO)));
-            for step in decoder {
+            for step in decoder.into_steps() {
                 black_box(step.unwrap());
             }
         })
