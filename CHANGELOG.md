@@ -2,10 +2,12 @@
 
 ### Removed
 * `Decoder::new_unbuffered` and `Encoder::new_unbuffered`
+* `ImageData::add_data` (use `data_mut()` instead)
 ### Changed
 * `Decoder::new` and `Encoder::new` are now unbuffered
 * Replaced lzw crate usage with new, faster implmentatiton
 * `Decoder::into_iter()` repeats Steps using GIF animation loop count
+* Replaced `ImageData::buffer_mut()` with `data_mut()`
 
 ## [0.9.0] - 2020-06-04
 ### Added

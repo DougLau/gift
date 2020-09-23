@@ -195,7 +195,7 @@ impl<N: Node> Dict<N> {
         self.clear_code() + 1
     }
 
-    /// Get the next available cde
+    /// Get the next available code
     fn next_code(&self) -> Code {
         self.table.len() as Code
     }
