@@ -18,7 +18,8 @@
 //!   - [LocalColorTable](struct.LocalColorTable.html) *(optional)*
 //!   - [ImageData](struct.ImageData.html)
 //! * [Trailer](struct.Trailer.html)
-//!
+
+use std::borrow::Cow;
 use pix::{gray::Gray8, Raster, Region};
 
 /// Number of channels in color tables (red, green and blue)
@@ -440,15 +441,14 @@ impl LogicalScreenDesc {
 /// The global color table, if present, is used for all frames which do not
 /// define a [LocalColorTable](struct.LocalColorTable.html).
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GlobalColorTable {
-    colors: Vec<u8>,
+pub struct GlobalColorTable<'a> {
+    colors: Cow<'a, [u8]>,
 }
 
-impl GlobalColorTable {
+impl<'a> GlobalColorTable<'a> {
     /// Create a global color table with specified colors
-    pub fn with_colors(colors: &[u8]) -> Self {
-        assert_eq!(colors.len() / CHANNELS * CHANNELS, colors.len());
-        let colors = colors.to_vec();
+    pub fn with_colors(colors: Cow<'a, [u8]>) -> Self {
+        assert_eq!(colors.len() % CHANNELS, 0);
         GlobalColorTable { colors }
     }
 
@@ -916,13 +916,13 @@ pub struct Trailer {}
 
 /// A block within a GIF file.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Block {
+pub enum Block<'a> {
     /// Header block
     Header(Header),
     /// Logical screen descriptor block
     LogicalScreenDesc(LogicalScreenDesc),
     /// Global color table block
-    GlobalColorTable(GlobalColorTable),
+    GlobalColorTable(GlobalColorTable<'a>),
     /// Plain text extension block
     PlainText(PlainText),
     /// Graphics control extension block
@@ -943,7 +943,7 @@ pub enum Block {
     Trailer(Trailer),
 }
 
-impl Block {
+impl Block<'_> {
     /// Check if a block can contain sub-blocks
     pub fn has_sub_blocks(&self) -> bool {
         use self::Block::*;
@@ -955,73 +955,73 @@ impl Block {
     }
 }
 
-impl From<Header> for Block {
+impl From<Header> for Block<'_> {
     fn from(b: Header) -> Self {
         Block::Header(b)
     }
 }
 
-impl From<LogicalScreenDesc> for Block {
+impl From<LogicalScreenDesc> for Block<'_> {
     fn from(b: LogicalScreenDesc) -> Self {
         Block::LogicalScreenDesc(b)
     }
 }
 
-impl From<GlobalColorTable> for Block {
-    fn from(b: GlobalColorTable) -> Self {
+impl<'a> From<GlobalColorTable<'a>> for Block<'a> {
+    fn from(b: GlobalColorTable<'a>) -> Self {
         Block::GlobalColorTable(b)
     }
 }
 
-impl From<PlainText> for Block {
+impl From<PlainText> for Block<'_> {
     fn from(b: PlainText) -> Self {
         Block::PlainText(b)
     }
 }
 
-impl From<GraphicControl> for Block {
+impl From<GraphicControl> for Block<'_> {
     fn from(b: GraphicControl) -> Self {
         Block::GraphicControl(b)
     }
 }
 
-impl From<Comment> for Block {
+impl From<Comment> for Block<'_> {
     fn from(b: Comment) -> Self {
         Block::Comment(b)
     }
 }
 
-impl From<Application> for Block {
+impl From<Application> for Block<'_> {
     fn from(b: Application) -> Self {
         Block::Application(b)
     }
 }
 
-impl From<Unknown> for Block {
+impl From<Unknown> for Block<'_> {
     fn from(b: Unknown) -> Self {
         Block::Unknown(b)
     }
 }
 
-impl From<ImageDesc> for Block {
+impl From<ImageDesc> for Block<'_> {
     fn from(b: ImageDesc) -> Self {
         Block::ImageDesc(b)
     }
 }
 
-impl From<LocalColorTable> for Block {
+impl From<LocalColorTable> for Block<'_> {
     fn from(b: LocalColorTable) -> Self {
         Block::LocalColorTable(b)
     }
 }
 
-impl From<ImageData> for Block {
+impl From<ImageData> for Block<'_> {
     fn from(b: ImageData) -> Self {
         Block::ImageData(b)
     }
 }
 
-impl From<Trailer> for Block {
+impl From<Trailer> for Block<'_> {
     fn from(b: Trailer) -> Self {
         Block::Trailer(b)
     }
@@ -1030,20 +1030,20 @@ impl From<Trailer> for Block {
 /// The preamble blocks are the first few
 /// blocks in a GIF file, before any frames.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Preamble {
+pub struct Preamble<'a> {
     /// Header block
     pub header: Header,
     /// Logical screen descriptor block
     pub logical_screen_desc: LogicalScreenDesc,
     /// Global color table block
-    pub global_color_table: Option<GlobalColorTable>,
+    pub global_color_table: Option<GlobalColorTable<'a>>,
     /// Loop count (application) extension block
     pub loop_count_ext: Option<Application>,
     /// Comment blocks
     pub comments: Vec<Comment>,
 }
 
-impl Preamble {
+impl Preamble<'_> {
     /// Get the screen width
     pub fn screen_width(&self) -> u16 {
         self.logical_screen_desc.screen_width()

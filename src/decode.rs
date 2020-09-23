@@ -56,7 +56,7 @@ pub struct Blocks<R: Read> {
 }
 
 impl<R: Read> Iterator for Blocks<R> {
-    type Item = Result<Block>;
+    type Item = Result<Block<'static>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -88,7 +88,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Decode the next block (including all sub-blocks).
-    fn next_block(&mut self) -> Result<Block> {
+    fn next_block(&mut self) -> Result<Block<'static>> {
         let mut block = self.decode_block()?;
         if block.has_sub_blocks() {
             while self.decode_sub_block(&mut block)? {}
@@ -98,7 +98,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Decode one block
-    fn decode_block(&mut self) -> Result<Block> {
+    fn decode_block(&mut self) -> Result<Block<'static>> {
         let block = match self.expected_next {
             Some((bc, sz)) => self.parse_expected(bc, sz)?,
             None => self.parse_block()?,
@@ -108,7 +108,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse an expected block
-    fn parse_expected(&mut self, bc: BlockCode, sz: usize) -> Result<Block> {
+    fn parse_expected(&mut self, bc: BlockCode, sz: usize) -> Result<Block<'static>> {
         use crate::block::BlockCode::*;
         match bc {
             Header_ => self.parse_header(),
@@ -121,7 +121,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse a Header block
-    fn parse_header(&mut self) -> Result<Block> {
+    fn parse_header(&mut self) -> Result<Block<'static>> {
         let mut buf = vec![0; BlockCode::Header_.size()];
         self.fill_buffer(&mut buf)?;
         if &buf[..3] == b"GIF" {
@@ -136,7 +136,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse a Logical Screen Descriptor block
-    fn parse_logical_screen_desc(&mut self) -> Result<Block> {
+    fn parse_logical_screen_desc(&mut self) -> Result<Block<'static>> {
         let mut buf = vec![0; BlockCode::LogicalScreenDesc_.size()];
         self.fill_buffer(&mut buf)?;
         let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
@@ -154,21 +154,21 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse a Global Color Table block
-    fn parse_global_color_table(&mut self, sz: usize) -> Result<Block> {
+    fn parse_global_color_table(&mut self, sz: usize) -> Result<Block<'static>> {
         let mut buf = vec![0; sz];
         self.fill_buffer(&mut buf)?;
-        Ok(GlobalColorTable::with_colors(&buf).into())
+        Ok(GlobalColorTable::with_colors(buf.into()).into())
     }
 
     /// Parse a Local Color Table block
-    fn parse_local_color_table(&mut self, sz: usize) -> Result<Block> {
+    fn parse_local_color_table(&mut self, sz: usize) -> Result<Block<'static>> {
         let mut buf = vec![0; sz];
         self.fill_buffer(&mut buf)?;
         Ok(LocalColorTable::with_colors(&buf).into())
     }
 
     /// Parse an Image Data block
-    fn parse_image_data(&mut self) -> Result<Block> {
+    fn parse_image_data(&mut self) -> Result<Block<'static>> {
         let mut buf = vec![0; BlockCode::ImageData_.size()];
         self.fill_buffer(&mut buf)?;
         let min_code_bits = buf[0];
@@ -181,7 +181,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse a block
-    fn parse_block(&mut self) -> Result<Block> {
+    fn parse_block(&mut self) -> Result<Block<'static>> {
         use crate::block::BlockCode::*;
         let mut buf = [0; 1];
         self.fill_buffer(&mut buf)?;
@@ -194,7 +194,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse an extension block
-    fn parse_extension(&mut self) -> Result<Block> {
+    fn parse_extension(&mut self) -> Result<Block<'static>> {
         use crate::block::ExtensionCode::*;
         let mut buf = [0; 1];
         self.fill_buffer(&mut buf)?;
@@ -209,7 +209,7 @@ impl<R: Read> Blocks<R> {
     }
 
     /// Parse an Image Descriptor block
-    fn parse_image_desc(&mut self) -> Result<Block> {
+    fn parse_image_desc(&mut self) -> Result<Block<'static>> {
         let mut buf = vec![0; BlockCode::ImageDesc_.size() - 1];
         self.fill_buffer(&mut buf)?;
         let left = u16::from(buf[1]) << 8 | u16::from(buf[0]);
@@ -432,7 +432,7 @@ pub struct Frames<R: Read> {
     /// Block decoder
     blocks: Blocks<R>,
     /// Preamble blocks
-    preamble: Option<Preamble>,
+    preamble: Option<Preamble<'static>>,
     /// Graphic control block
     graphic_control_ext: Option<GraphicControl>,
     /// Image description block
@@ -475,7 +475,7 @@ impl<R: Read> Frames<R> {
 
     /// Read preamble blocks.  These are the blocks at the beginning of the
     /// file, before any frame blocks.
-    pub fn preamble(&mut self) -> Result<Option<Preamble>> {
+    pub fn preamble(&mut self) -> Result<Option<Preamble<'static>>> {
         if self.has_frame() {
             return Ok(None);
         }
@@ -497,7 +497,7 @@ impl<R: Read> Frames<R> {
     }
 
     /// Handle one block
-    fn handle_block(&mut self, block: Block) -> Result<Option<Frame>> {
+    fn handle_block(&mut self, block: Block<'static>) -> Result<Option<Frame>> {
         match block {
             Block::Header(b) => {
                 if let Some(ref mut f) = &mut self.preamble {
@@ -596,7 +596,7 @@ pub struct Steps<R: Read> {
     /// Frame decoder
     frames: Frames<R>,
     /// Global color table block
-    global_color_table: Option<GlobalColorTable>,
+    global_color_table: Option<GlobalColorTable<'static>>,
     /// Current raster of animation
     raster: Option<Raster<SRgba8>>,
 }

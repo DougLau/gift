@@ -230,7 +230,7 @@ impl<W: Write> Encoder<W> {
     }
 
     /// Convert into a step encoder.
-    pub fn into_step_enc(self) -> encode::StepEnc<W> {
+    pub fn into_step_enc<'a>(self) -> encode::StepEnc<'a, W> {
         encode::StepEnc::new(self.into_frame_enc())
     }
 }

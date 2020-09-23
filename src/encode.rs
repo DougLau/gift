@@ -29,9 +29,9 @@ impl<W: Write> BlockEnc<W> {
     }
 
     /// Encode one [Block](block/enum.Block.html).
-    pub fn encode<B>(&mut self, block: B) -> Result<()>
+    pub fn encode<'a, B>(&mut self, block: B) -> Result<()>
     where
-        B: Into<Block>,
+        B: Into<Block<'a>>,
     {
         use crate::block::Block::*;
         let mut w = &mut self.writer;
@@ -93,7 +93,7 @@ impl LogicalScreenDesc {
     }
 }
 
-impl GlobalColorTable {
+impl GlobalColorTable<'_> {
     /// Format a global color table block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         w.write_all(self.colors())
@@ -316,24 +316,24 @@ impl<W: Write> FrameEnc<W> {
 /// All `Raster`s must have the same dimensions.
 ///
 /// [Step]: ../struct.Step.html
-pub struct StepEnc<W: Write> {
+pub struct StepEnc<'a, W: Write> {
     /// Frame encoder
     frame_enc: FrameEnc<W>,
     /// Global color table
-    global_color_table: (ColorTableConfig, Option<GlobalColorTable>),
+    global_color_table: (ColorTableConfig, Option<GlobalColorTable<'a>>),
     /// Animation loop count
     loop_count: Option<Application>,
     /// Preamble blocks
-    preamble: Option<Preamble>,
+    preamble: Option<Preamble<'a>>,
 }
 
-impl<W: Write> Drop for StepEnc<W> {
+impl<W: Write> Drop for StepEnc<'_, W> {
     fn drop(&mut self) {
         let _ = self.frame_enc.encode_trailer();
     }
 }
 
-impl<W: Write> StepEnc<W> {
+impl<W: Write> StepEnc<'_, W> {
     /// Create a new GIF raster encoder.
     pub(crate) fn new(frame_enc: FrameEnc<W>) -> Self {
         StepEnc {
@@ -356,7 +356,7 @@ impl<W: Write> StepEnc<W> {
     pub fn with_global_color_table(mut self, palette: &Palette) -> Self {
         let (tbl_cfg, pal) = make_color_table(palette);
         self.global_color_table =
-            (tbl_cfg, Some(GlobalColorTable::with_colors(&pal[..])));
+            (tbl_cfg, Some(GlobalColorTable::with_colors(pal.into())));
         self
     }
 
@@ -376,7 +376,7 @@ impl<W: Write> StepEnc<W> {
             .with_screen_height(image_desc.height())
             .with_color_table_config(tbl_cfg);
         preamble.global_color_table =
-            Some(GlobalColorTable::with_colors(&pal[..]));
+            Some(GlobalColorTable::with_colors(pal.clone().into()));
         preamble.loop_count_ext = self.loop_count.clone();
         match &self.preamble {
             Some(pre) => {
