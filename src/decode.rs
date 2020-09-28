@@ -921,7 +921,7 @@ mod test {
         match dec.next() {
             Some(Ok(Block::ImageData(b))) => {
                 let mut d = ImageData::new(100);
-                d.data_mut().extend(IMAGE_1);
+                d.data_mut().extend_from_slice(IMAGE_1);
                 assert_eq!(b, d);
             }
             _ => panic!(),

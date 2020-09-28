@@ -891,7 +891,7 @@ impl From<&Raster<Gray8>> for ImageData {
     fn from(raster: &Raster<Gray8>) -> Self {
         let buf = raster.as_u8_slice();
         let mut image_data = ImageData::new(buf.len());
-        image_data.data_mut().extend(buf);
+        image_data.data_mut().extend_from_slice(buf);
         image_data
     }
 }
