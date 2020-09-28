@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let colors = [0, 0, 0, 255, 255, 255];
     let mut image = ImageData::new(16);
     #[rustfmt::skip]
-    image.data_mut().extend(&[
+    image.data_mut().extend_from_slice(&[
         1, 0, 0, 1,
         0, 1, 1, 0,
         0, 1, 1, 0,
