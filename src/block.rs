@@ -478,7 +478,7 @@ pub struct PlainText {
 impl PlainText {
     /// Add a sub block
     pub fn add_sub_block(&mut self, b: &[u8]) {
-        assert!(b.len() < 256);
+        assert!(!b.is_empty() && b.len() < 256);
         self.sub_blocks.push(b.to_vec());
     }
 
@@ -596,7 +596,7 @@ pub struct Comment {
 impl Comment {
     /// Add a comment
     pub fn add_comment(&mut self, b: &[u8]) {
-        assert!(b.len() < 256);
+        assert!(!b.is_empty() && b.len() < 256);
         self.comments.push(b.to_vec());
     }
 
@@ -635,7 +635,7 @@ impl Application {
 
     /// Add application data
     pub fn add_app_data(&mut self, b: &[u8]) {
-        assert!(b.len() < 256);
+        assert!(!b.is_empty() && b.len() < 256);
         self.app_data.push(b.to_vec());
     }
 
@@ -684,7 +684,7 @@ impl Unknown {
 
     /// Add a sub-block
     pub fn add_sub_block(&mut self, b: &[u8]) {
-        assert!(b.len() < 256);
+        assert!(!b.is_empty() && b.len() < 256);
         self.sub_blocks.push(b.to_vec());
     }
 
