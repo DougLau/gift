@@ -446,6 +446,11 @@ pub struct GlobalColorTable {
 
 impl GlobalColorTable {
     /// Create a global color table with specified colors
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `colors` is not divisible by 3, the number of
+    /// color channels.
     pub fn with_colors(colors: &[u8]) -> Self {
         assert_eq!(colors.len() / CHANNELS * CHANNELS, colors.len());
         let colors = colors.to_vec();
@@ -477,6 +482,10 @@ pub struct PlainText {
 
 impl PlainText {
     /// Add a sub block
+    ///
+    /// # Panics
+    ///
+    /// Panics if `b` is empty or longer than 255 bytes.
     pub fn add_sub_block(&mut self, b: &[u8]) {
         assert!(!b.is_empty() && b.len() < 256);
         self.sub_blocks.push(b.to_vec());
@@ -595,6 +604,10 @@ pub struct Comment {
 
 impl Comment {
     /// Add a comment
+    ///
+    /// # Panics
+    ///
+    /// Panics if `b` is empty or longer than 255 bytes.
     pub fn add_comment(&mut self, b: &[u8]) {
         assert!(!b.is_empty() && b.len() < 256);
         self.comments.push(b.to_vec());
@@ -634,6 +647,10 @@ impl Application {
     }
 
     /// Add application data
+    ///
+    /// # Panics
+    ///
+    /// Panics if `b` is empty or longer than 255 bytes.
     pub fn add_app_data(&mut self, b: &[u8]) {
         assert!(!b.is_empty() && b.len() < 256);
         self.app_data.push(b.to_vec());
@@ -683,6 +700,10 @@ impl Unknown {
     }
 
     /// Add a sub-block
+    ///
+    /// # Panics
+    ///
+    /// Panics if `b` is empty or longer than 255 bytes.
     pub fn add_sub_block(&mut self, b: &[u8]) {
         assert!(!b.is_empty() && b.len() < 256);
         self.sub_blocks.push(b.to_vec());
@@ -858,6 +879,11 @@ pub struct LocalColorTable {
 
 impl LocalColorTable {
     /// Create a local color table with specified colors
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length of `colors` is not divisible by 3, the number of
+    /// color channels.
     pub fn with_colors(colors: &[u8]) -> Self {
         assert_eq!(colors.len() / CHANNELS * CHANNELS, colors.len());
         let colors = colors.to_vec();
