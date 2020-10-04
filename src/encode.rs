@@ -106,7 +106,7 @@ impl PlainText {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::PlainText_.into()])?;
         for b in self.sub_blocks() {
-            debug_assert!(b.len() < 256);
+            debug_assert!(!b.is_empty() && b.len() < 256);
             let len = b.len() as u8;
             w.write_all(&[len])?; // sub-block size
             w.write_all(b)?;
@@ -138,7 +138,7 @@ impl Comment {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Comment_.into()])?;
         for c in self.comments() {
-            debug_assert!(c.len() < 256);
+            debug_assert!(!c.is_empty() && c.len() < 256);
             let len = c.len() as u8;
             w.write_all(&[len])?; // sub-block size
             w.write_all(c)?;
@@ -153,7 +153,7 @@ impl Application {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(&[ExtensionCode::Application_.into()])?;
         for c in self.app_data() {
-            debug_assert!(c.len() < 256);
+            debug_assert!(!c.is_empty() && c.len() < 256);
             let len = c.len() as u8;
             w.write_all(&[len])?; // sub-block size
             w.write_all(c)?;
@@ -168,7 +168,7 @@ impl Unknown {
         w.write_all(BlockCode::Extension_.signature())?;
         w.write_all(self.ext_id())?;
         for c in self.sub_blocks() {
-            debug_assert!(c.len() < 256);
+            debug_assert!(!c.is_empty() && c.len() < 256);
             let len = c.len() as u8;
             w.write_all(&[len])?; // sub-block size
             w.write_all(c)?;
