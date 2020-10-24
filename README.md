@@ -24,7 +24,7 @@ for step in Decoder::new(gif) {
 
 ## Encoding
 
-```
+```rust
 use gift::{Encoder, Step};
 use pix::{gray::Gray8, Palette, Raster, rgb::SRgb8};
 use std::error::Error;

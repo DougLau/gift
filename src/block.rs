@@ -298,6 +298,23 @@ impl Header {
 
 /// The logical screen descriptor contains properties which apply to all frames
 /// in the file.
+///
+/// ```
+/// use gift::block::{
+///     ColorTableConfig, ColorTableExistence, ColorTableOrdering,
+///     LogicalScreenDesc
+/// };
+///
+/// let desc = LogicalScreenDesc::default()
+///     .with_screen_width(64)
+///     .with_screen_height(64)
+///     .with_color_table_config(ColorTableConfig::new(
+///         ColorTableExistence::Present,
+///         ColorTableOrdering::NotSorted,
+///         16,
+///     ))
+///     .with_background_color_idx(1);
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LogicalScreenDesc {
     /// Pixel width of logical screen
@@ -346,7 +363,11 @@ impl LogicalScreenDesc {
             && self.screen_height == rhs.screen_height
     }
 
-    /// Set the flags which control the global color table configuration
+    /// Set the flags which control the global color table configuration.
+    ///
+    /// It is recommended to use [with_color_table_config] instead.
+    ///
+    /// [with_color_table_config]: struct.LogicalScreenDesc.html#method.with_color_table_config
     pub fn with_flags(mut self, flags: u8) -> Self {
         self.flags = flags;
         self
@@ -720,6 +741,21 @@ impl Unknown {
 }
 
 /// The image descriptor block contains properties which apply to one frame.
+///
+/// ```
+/// use gift::block::{
+///     ColorTableConfig, ColorTableExistence, ColorTableOrdering, ImageDesc,
+/// };
+///
+/// let desc = ImageDesc::default()
+///     .with_width(64)
+///     .with_height(64)
+///     .with_color_table_config(ColorTableConfig::new(
+///         ColorTableExistence::Present,
+///         ColorTableOrdering::NotSorted,
+///         16,
+///     ));
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ImageDesc {
     /// Left position relative to logical screen
@@ -788,6 +824,12 @@ impl ImageDesc {
 
     /// Set the flags which control the interlace value and the local color
     /// table configuration.
+    ///
+    /// It is recommended to use [with_interlaced] or [with_color_table_config]
+    /// instead.
+    ///
+    /// [with_color_table_config]: struct.ImageDesc.html#method.with_color_table_config
+    /// [with_interlaced]: struct.ImageDesc.html#method.with_interlaced
     pub fn with_flags(mut self, flags: u8) -> Self {
         self.flags = flags;
         self
