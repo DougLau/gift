@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.10.0] - 2020-10-24
 ### Removed
 * `Decoder::new_unbuffered` and `Encoder::new_unbuffered`
 * `ImageData::add_data` (use `data_mut()` instead)
