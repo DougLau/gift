@@ -210,7 +210,7 @@ impl ImageData {
     /// Format an image data block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         let min_code_bits =
-            next_high_bit(self.data().iter().copied().max().unwrap_or(0));
+            next_high_bit(self.data().iter().copied().max().unwrap_or(0)) + 1;
         // minimum code bits must be between 2 and 12
         let min_code_bits = 2.max(min_code_bits).min(12);
         w.write_all(&[min_code_bits])?;
@@ -454,9 +454,12 @@ fn make_color_table(palette: &Palette) -> (ColorTableConfig, Vec<u8>) {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Encoder;
+    use pix::{gray::Gray8, rgb::SRgb8, Palette, Raster};
 
     #[test]
     fn high_bits() {
+        assert_eq!(next_high_bit(0), 0);
         assert_eq!(next_high_bit(2), 1);
         assert_eq!(next_high_bit(3), 2);
         assert_eq!(next_high_bit(4), 2);
@@ -465,5 +468,74 @@ mod test {
         assert_eq!(next_high_bit(8), 3);
         assert_eq!(next_high_bit(9), 4);
         assert_eq!(next_high_bit(16), 4);
+    }
+
+    /// Check a raster encode
+    fn check_encode(palette: Palette, raster: Raster<Gray8>, data: &[u8]) {
+        let mut bytes = vec![];
+        let mut enc = Encoder::new(&mut bytes).into_step_enc();
+        let step = Step::with_indexed(raster, palette);
+        enc.encode_step(&step).unwrap();
+        drop(enc);
+        assert_eq!(&bytes[..], data);
+    }
+
+    /// Encoded 2x2 gif data
+    const GIF_2X2: &[u8] = &[
+        71, 73, 70, 56, 57, 97, 2, 0, 2, 0, 128, 0, 0, 0, 255, 0, 0, 255, 255,
+        44, 0, 0, 0, 0, 2, 0, 2, 0, 0, 2, 2, 12, 16, 0, 59,
+    ];
+
+    #[test]
+    fn enc_2x2() {
+        let mut raster = Raster::with_clear(2, 2);
+        *raster.pixel_mut(0, 0) = Gray8::new(1);
+        *raster.pixel_mut(1, 1) = Gray8::new(1);
+        let mut palette = Palette::new(2);
+        palette.set_entry(SRgb8::new(0, 0xFF, 0));
+        palette.set_entry(SRgb8::new(0, 0xFF, 0xFF));
+        check_encode(palette, raster, GIF_2X2);
+    }
+
+    /// Encoded 3x3 gif data
+    const GIF_3X3: &[u8] = &[
+        71, 73, 70, 56, 57, 97, 3, 0, 3, 0, 162, 0, 0, 255, 0, 0, 0, 255, 0, 0,
+        0, 255, 255, 255, 0, 255, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 0, 0,
+        0, 0, 3, 0, 3, 0, 0, 3, 5, 24, 176, 2, 4, 35, 0, 59,
+    ];
+
+    #[test]
+    fn enc_3x3() {
+        let mut raster = Raster::with_clear(3, 3);
+        *raster.pixel_mut(0, 0) = Gray8::new(1);
+        *raster.pixel_mut(1, 1) = Gray8::new(2);
+        *raster.pixel_mut(2, 2) = Gray8::new(3);
+        *raster.pixel_mut(0, 2) = Gray8::new(4);
+        let mut palette = Palette::new(5);
+        palette.set_entry(SRgb8::new(0xFF, 0, 0));
+        palette.set_entry(SRgb8::new(0, 0xFF, 0));
+        palette.set_entry(SRgb8::new(0, 0, 0xFF));
+        palette.set_entry(SRgb8::new(0xFF, 0xFF, 0));
+        palette.set_entry(SRgb8::new(0xFF, 0, 0xFF));
+        check_encode(palette, raster, GIF_3X3);
+    }
+
+    /// Encoded 4x4 gif data
+    const GIF_4X4: &[u8] = &[
+        71, 73, 70, 56, 57, 97, 4, 0, 4, 0, 128, 0, 0, 255, 0, 0, 255, 255, 0,
+        44, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 5, 12, 14, 134, 122, 81, 0, 59,
+    ];
+
+    #[test]
+    fn enc_4x4() {
+        let mut raster = Raster::with_clear(4, 4);
+        *raster.pixel_mut(0, 0) = Gray8::new(1);
+        *raster.pixel_mut(1, 1) = Gray8::new(1);
+        *raster.pixel_mut(2, 2) = Gray8::new(1);
+        *raster.pixel_mut(3, 3) = Gray8::new(1);
+        let mut palette = Palette::new(2);
+        palette.set_entry(SRgb8::new(0xFF, 0, 0));
+        palette.set_entry(SRgb8::new(0xFF, 0xFF, 0));
+        check_encode(palette, raster, GIF_4X4);
     }
 }
