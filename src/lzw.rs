@@ -373,7 +373,7 @@ impl Decompressor {
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
         let mut bytes = bytes;
-        while bytes.len() > 0 {
+        while !bytes.is_empty() {
             let (consumed, code) = self.unpack(bytes);
             if let Some(code) = code {
                 self.decompress_code(code, buffer)?;

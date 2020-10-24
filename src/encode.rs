@@ -258,9 +258,8 @@ impl<W: Write> FrameEnc<W> {
         if self.has_preamble {
             return Err(Error::InvalidBlockSequence);
         }
-        self.block_enc.encode(preamble.header.clone())?;
-        self.block_enc
-            .encode(preamble.logical_screen_desc.clone())?;
+        self.block_enc.encode(preamble.header)?;
+        self.block_enc.encode(preamble.logical_screen_desc)?;
         if let Some(tbl) = &preamble.global_color_table {
             self.block_enc.encode(tbl.clone())?;
         }
@@ -284,9 +283,9 @@ impl<W: Write> FrameEnc<W> {
             return Err(Error::InvalidBlockSequence);
         }
         if let Some(ctrl) = &frame.graphic_control_ext {
-            self.block_enc.encode(ctrl.clone())?;
+            self.block_enc.encode(*ctrl)?;
         }
-        self.block_enc.encode(frame.image_desc.clone())?;
+        self.block_enc.encode(frame.image_desc)?;
         if let Some(tbl) = &frame.local_color_table {
             self.block_enc.encode(tbl.clone())?;
         }

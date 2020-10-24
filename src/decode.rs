@@ -8,6 +8,7 @@ use crate::error::{Error, Result};
 use crate::lzw::Decompressor;
 use crate::private::Step;
 use pix::{rgb::SRgba8, Raster, Region};
+use std::cmp::Ordering;
 use std::io::{ErrorKind, Read};
 
 /// An Iterator for [Block]s within a GIF file.
@@ -297,7 +298,7 @@ impl<R: Read> Blocks<R> {
             debug!("sub-block: {:?} {:?}", block, blk_sz);
             self.parse_sub_block(block, &buf[1..blk_sz])?;
         }
-        return Ok(len > 0);
+        Ok(len > 0)
     }
 
     /// Parse a sub-block in the buffer
@@ -347,9 +348,9 @@ impl ImageData {
             self.data_mut().shrink_to_fit();
         }
         if self.data().len() == image_sz {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(Error::IncompleteImageData);
+            Err(Error::IncompleteImageData)
         }
     }
 }
@@ -766,22 +767,20 @@ impl Iterator for StepsLooping {
         if let Some(step) = self.steps.get(self.step_n) {
             self.step_n += 1;
             Some(Ok(step.clone()))
-        } else {
-            if let Some(loop_count) = self.loop_count {
-                if loop_count > 1 {
-                    self.loop_count = Some(loop_count - 1);
-                } else if loop_count == 1 {
-                    self.loop_count = None;
-                }
-                if let Some(step) = self.steps.get(0) {
-                    self.step_n = 1;
-                    Some(Ok(step.clone()))
-                } else {
-                    None
-                }
+        } else if let Some(loop_count) = self.loop_count {
+            match loop_count.cmp(&1) {
+                Ordering::Greater => self.loop_count = Some(loop_count - 1),
+                Ordering::Equal => self.loop_count = None,
+                _ => (),
+            }
+            if let Some(step) = self.steps.get(0) {
+                self.step_n = 1;
+                Some(Ok(step.clone()))
             } else {
                 None
             }
+        } else {
+            None
         }
     }
 }

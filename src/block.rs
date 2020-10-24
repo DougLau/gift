@@ -977,11 +977,11 @@ impl Block {
     /// Check if a block can contain sub-blocks
     pub fn has_sub_blocks(&self) -> bool {
         use self::Block::*;
-        match self {
+        matches!(
+            self,
             PlainText(_) | GraphicControl(_) | Comment(_) | Application(_)
-            | Unknown(_) | ImageData(_) => true,
-            _ => false,
-        }
+                | Unknown(_) | ImageData(_)
+        )
     }
 }
 
