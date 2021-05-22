@@ -1018,8 +1018,12 @@ impl Block {
         use self::Block::*;
         matches!(
             self,
-            PlainText(_) | GraphicControl(_) | Comment(_) | Application(_)
-                | Unknown(_) | ImageData(_)
+            PlainText(_)
+                | GraphicControl(_)
+                | Comment(_)
+                | Application(_)
+                | Unknown(_)
+                | ImageData(_)
         )
     }
 }
