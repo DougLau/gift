@@ -1,6 +1,6 @@
 // decode.rs
 //
-// Copyright (c) 2019-2020  Douglas Lau
+// Copyright (c) 2019-2021  Douglas Lau
 //
 //! GIF file decoding
 use crate::block::*;
@@ -173,7 +173,7 @@ impl<R: Read> Blocks<R> {
         let mut buf = vec![0; BlockCode::ImageData_.size()];
         self.fill_buffer(&mut buf)?;
         let min_code_bits = buf[0];
-        if 2 <= min_code_bits && min_code_bits <= 12 {
+        if (2..=12).contains(&min_code_bits) {
             self.decompressor = Some(Decompressor::new(min_code_bits));
             Ok(ImageData::new(self.image_sz).into())
         } else {

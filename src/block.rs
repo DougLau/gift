@@ -1,6 +1,6 @@
 // block.rs
 //
-// Copyright (c) 2019-2020  Douglas Lau
+// Copyright (c) 2019-2021  Douglas Lau
 //
 //! A GIF file consists of a sequence of [Block](enum.Block.html)s in a
 //! specific order.
@@ -389,7 +389,7 @@ impl LogicalScreenDesc {
 
     /// Get the color resolution (obsolete GIF feature)
     pub fn color_resolution(self) -> u16 {
-        2 << ((self.flags & Self::COLOR_RESOLUTION) >> 4 as u16)
+        2 << ((self.flags & Self::COLOR_RESOLUTION) >> 4_u16)
     }
 
     /// Check the descriptor for global color table ordering
@@ -658,12 +658,9 @@ impl Application {
     ///
     /// Use zero to loop forever.
     pub fn with_loop_count(loop_count: u16) -> Self {
-        let mut app_data = vec![];
-        app_data.push(b"NETSCAPE2.0".to_vec());
-        let mut v = vec![1];
-        v.push((loop_count >> 8) as u8);
-        v.push(loop_count as u8);
-        app_data.push(v);
+        let param0 = b"NETSCAPE2.0".to_vec();
+        let param1 = vec![1, (loop_count >> 8) as u8, loop_count as u8];
+        let app_data = vec![param0, param1];
         Application { app_data }
     }
 

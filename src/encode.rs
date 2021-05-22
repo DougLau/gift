@@ -369,14 +369,18 @@ impl<W: Write> StepEnc<W> {
         let image_desc = make_image_desc(raster)?;
         let image_data = raster.into();
         let (tbl_cfg, pal) = make_color_table(palette);
-        let mut preamble = Preamble::default();
-        preamble.logical_screen_desc = LogicalScreenDesc::default()
+        let logical_screen_desc = LogicalScreenDesc::default()
             .with_screen_width(image_desc.width())
             .with_screen_height(image_desc.height())
             .with_color_table_config(tbl_cfg);
-        preamble.global_color_table =
-            Some(GlobalColorTable::with_colors(&pal[..]));
-        preamble.loop_count_ext = self.loop_count.clone();
+        let global_color_table = Some(GlobalColorTable::with_colors(&pal[..]));
+        let loop_count_ext = self.loop_count.clone();
+        let preamble = Preamble {
+            logical_screen_desc,
+            global_color_table,
+            loop_count_ext,
+            ..Preamble::default()
+        };
         match &self.preamble {
             Some(pre) => {
                 if !pre

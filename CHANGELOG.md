@@ -19,7 +19,7 @@
 * `Encoder::into_raster_enc` to `into_step_enc` (`RasterEnc` to `StepEnc`)
 * `Decoder::into_rasters` to `into_steps` (`Rasters` to `Steps`)
 
-## [0.8.0] - 2020-50-20
+## [0.8.0] - 2020-05-20
 ### Changed
 * Updated pix dependency to 0.13
 
