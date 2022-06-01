@@ -1,6 +1,6 @@
 // decode.rs
 //
-// Copyright (c) 2019-2021  Douglas Lau
+// Copyright (c) 2019-2022  Douglas Lau
 //
 //! GIF file decoding
 use crate::block::*;
@@ -696,8 +696,8 @@ impl<R: Read> StepsOnce<R> {
             update_raster(&mut raster, &frame, &self.global_color_table)?;
             raster
         } else {
-            let mut raster = self.raster.as_mut().unwrap();
-            update_raster(&mut raster, &frame, &self.global_color_table)?;
+            let raster = self.raster.as_mut().unwrap();
+            update_raster(raster, &frame, &self.global_color_table)?;
             Raster::with_raster(raster)
         };
         if let DisposalMethod::Background = frame.disposal_method() {

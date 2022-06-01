@@ -1,7 +1,6 @@
 [package]
 name = "gift"
 version = "0.10.0"
-authors = ["Doug Lau <doug.p.lau@gmail.com>"]
 description = "A library for reading and writing GIF images"
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/gift"
@@ -9,7 +8,7 @@ repository = "https://github.com/DougLau/gift"
 readme = "README.md"
 keywords = ["gif", "image"]
 categories = ["multimedia", "encoding"]
-edition = "2018"
+edition = "2021"
 include = ["src/**/*", "Cargo.*", "LICENSE-*", "README.md", "CHANGELOG.md", "benches/*"]
 
 [dependencies]
@@ -18,7 +17,7 @@ pix = "0.13"
 
 # NOTE: for cmd only -- library has no optional features
 clap = { version = "2.33", optional = true }
-env_logger = { version = "0.7", optional = true }
+env_logger = { version = "0.9", optional = true }
 termcolor = { version = "1", optional = true }
 
 [dev-dependencies]

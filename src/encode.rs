@@ -1,6 +1,6 @@
 // encode.rs
 //
-// Copyright (c) 2019-2020  Douglas Lau
+// Copyright (c) 2019-2022  Douglas Lau
 //
 //! GIF file encoding
 use crate::block::*;
@@ -221,7 +221,7 @@ impl ImageData {
         for chunk in buffer.chunks(255) {
             let len = chunk.len() as u8;
             w.write_all(&[len])?; // sub-block size
-            w.write_all(&chunk)?;
+            w.write_all(chunk)?;
         }
         w.write_all(&[0]) // final sub-block size
     }
