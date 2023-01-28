@@ -1,6 +1,6 @@
 // decode.rs
 //
-// Copyright (c) 2019-2022  Douglas Lau
+// Copyright (c) 2019-2023  Douglas Lau
 //
 //! GIF file decoding
 use crate::block::*;
@@ -591,7 +591,7 @@ struct StepsLooping {
 /// Steps iterator which can be once or looping
 enum StepsInner<R: Read> {
     /// Iterate only once
-    Once(StepsOnce<R>),
+    Once(Box<StepsOnce<R>>),
     /// Loop steps more than once
     Looping(StepsLooping),
 }
@@ -832,7 +832,7 @@ impl<R: Read> Steps<R> {
     /// Create a new step decoder without looping
     pub(crate) fn new_once(frames: Frames<R>) -> Self {
         let once = StepsOnce::new(frames);
-        let inner = StepsInner::Once(once);
+        let inner = StepsInner::Once(Box::new(once));
         Steps { inner }
     }
 
