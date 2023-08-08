@@ -102,7 +102,7 @@ impl Step {
     }
 
     /// Adjust the transparent color.
-    pub(crate) fn with_transparent_color(mut self, clr: Option<u8>) -> Self {
+    pub fn with_transparent_color(mut self, clr: Option<u8>) -> Self {
         if clr.is_some() || self.graphic_control_ext.is_some() {
             let mut control = self.graphic_control_ext.unwrap_or_default();
             control.set_transparent_color(clr);
