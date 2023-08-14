@@ -1,6 +1,6 @@
 // private.rs
 //
-// Copyright (c) 2019-2020  Douglas Lau
+// Copyright (c) 2019-2023  Douglas Lau
 //
 //! Private module for top-level items
 use crate::{block::GraphicControl, decode, encode, Result};
@@ -113,6 +113,11 @@ impl Step {
             }
         }
         self
+    }
+
+    /// Get the transparent color
+    pub fn transparent_color(&self) -> Option<u8> {
+        self.graphic_control_ext.and_then(|c| c.transparent_color())
     }
 
     /// Adjust the delay time.

@@ -598,7 +598,7 @@ enum StepsInner<R: Read> {
 
 /// An Iterator for [Step]s within a GIF file.
 ///
-/// It can be build in two ways:
+/// It can be built in two ways:
 /// * Decoder.[into_steps]: iterates steps only once.
 /// * Decoder.[into_iter]: iterates steps and repeats using GIF loop count.
 ///

@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [0.10.2]
+### Added
+* `Step::transparent_color()`
+
+## [0.10.1] -
+### Added
+* `Step::with_transparent_color()`
+
 ## [0.10.0] - 2020-10-24
 ### Removed
 * `Decoder::new_unbuffered` and `Encoder::new_unbuffered`
