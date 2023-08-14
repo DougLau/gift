@@ -1,6 +1,6 @@
 // block.rs
 //
-// Copyright (c) 2019-2021  Douglas Lau
+// Copyright (c) 2019-2023  Douglas Lau
 //
 //! A GIF file consists of a sequence of [Block](enum.Block.html)s in a
 //! specific order.
@@ -123,11 +123,12 @@ impl ColorTableConfig {
 }
 
 /// Method to dispose of a frame in an animation
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum DisposalMethod {
     /// No disposal specified
     NoAction,
     /// Do not dispose of frame
+    #[default]
     Keep,
     /// Restore to background color
     Background,
@@ -135,12 +136,6 @@ pub enum DisposalMethod {
     Previous,
     /// Reserved methods
     Reserved(u8),
-}
-
-impl Default for DisposalMethod {
-    fn default() -> Self {
-        DisposalMethod::Keep
-    }
 }
 
 impl From<u8> for DisposalMethod {
