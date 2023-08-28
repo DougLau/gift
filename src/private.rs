@@ -3,7 +3,10 @@
 // Copyright (c) 2019-2023  Douglas Lau
 //
 //! Private module for top-level items
-use crate::{block::GraphicControl, decode, encode, Result};
+use crate::{
+    block::{DisposalMethod, GraphicControl},
+    decode, encode, Result,
+};
 use pix::{gray::Gray8, rgb::SRgba8, Palette, Raster};
 use std::io::{Read, Write};
 
@@ -101,16 +104,26 @@ impl Step {
         }
     }
 
+    /// Adjust the disposal method.
+    pub fn with_disposal_method(mut self, method: DisposalMethod) -> Self {
+        let mut control = self.graphic_control_ext.unwrap_or_default();
+        control.set_disposal_method(method);
+        if control != GraphicControl::default() {
+            self.graphic_control_ext = Some(control);
+        } else {
+            self.graphic_control_ext = None;
+        }
+        self
+    }
+
     /// Adjust the transparent color.
     pub fn with_transparent_color(mut self, clr: Option<u8>) -> Self {
-        if clr.is_some() || self.graphic_control_ext.is_some() {
-            let mut control = self.graphic_control_ext.unwrap_or_default();
-            control.set_transparent_color(clr);
-            if control != GraphicControl::default() {
-                self.graphic_control_ext = Some(control);
-            } else {
-                self.graphic_control_ext = None;
-            }
+        let mut control = self.graphic_control_ext.unwrap_or_default();
+        control.set_transparent_color(clr);
+        if control != GraphicControl::default() {
+            self.graphic_control_ext = Some(control);
+        } else {
+            self.graphic_control_ext = None;
         }
         self
     }
@@ -122,16 +135,12 @@ impl Step {
 
     /// Adjust the delay time.
     pub fn with_delay_time_cs(mut self, delay: Option<u16>) -> Self {
-        if delay.is_some() || self.graphic_control_ext.is_some() {
-            let mut control = self.graphic_control_ext.unwrap_or_default();
-            if let Some(delay) = delay {
-                control.set_delay_time_cs(delay);
-            }
-            if control != GraphicControl::default() {
-                self.graphic_control_ext = Some(control);
-            } else {
-                self.graphic_control_ext = None;
-            }
+        let mut control = self.graphic_control_ext.unwrap_or_default();
+        control.set_delay_time_cs(delay.unwrap_or_default());
+        if control != GraphicControl::default() {
+            self.graphic_control_ext = Some(control);
+        } else {
+            self.graphic_control_ext = None;
         }
         self
     }
