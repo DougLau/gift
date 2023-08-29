@@ -340,7 +340,7 @@ impl Decompressor {
     }
 
     /// Unpack one code from a buffer
-    fn unpack(&mut self, buffer: &[u8]) -> (usize, Option<Code>) {
+    fn unpack(&mut self, buffer: &[u8]) -> (Option<Code>, usize) {
         let mut n_consumed = 0;
         let code_bits = u8::from(self.code_bits);
         for byte in buffer {
@@ -355,9 +355,9 @@ impl Decompressor {
             let code = (self.code & self.code_bits.mask()) as Code;
             self.code >>= code_bits;
             self.n_bits -= code_bits;
-            (n_consumed, Some(code))
+            (Some(code), n_consumed)
         } else {
-            (n_consumed, None)
+            (None, n_consumed)
         }
     }
 
@@ -368,14 +368,11 @@ impl Decompressor {
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
         let mut bytes = bytes;
-        loop {
-            let (consumed, code) = self.unpack(bytes);
-            let Some(code) = code else {
-                return Ok(());
-            };
+        while let (Some(code), n_consumed) = self.unpack(bytes) {
             self.decompress_code(code, buffer)?;
-            bytes = &bytes[consumed..];
+            bytes = &bytes[n_consumed..];
         }
+        Ok(())
     }
 
     /// Decompress one code
