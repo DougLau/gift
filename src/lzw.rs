@@ -1,6 +1,6 @@
 // lzw.rs
 //
-// Copyright (c) 2020  Douglas Lau
+// Copyright (c) 2020-2023  Douglas Lau
 //
 //! Lempel-Ziv-Welch compression for GIF
 use crate::error::{Error, Result};
@@ -81,9 +81,9 @@ struct DNode {
     byte: u8,
 }
 
-/// Code dictionary
+/// Code dictionary trie
 #[derive(Debug)]
-struct Dict<N: Node> {
+struct Trie<N: Node> {
     /// Table of codes
     table: Vec<N>,
     /// Minimum code bits
@@ -93,7 +93,7 @@ struct Dict<N: Node> {
 /// LZW Data Compressor
 pub struct Compressor {
     /// Code dictionary
-    dict: Dict<CNode>,
+    trie: Trie<CNode>,
     /// Minimum code bits
     min_code_bits: u8,
     /// Current code bits
@@ -108,7 +108,7 @@ pub struct Compressor {
 #[derive(Debug)]
 pub struct Decompressor {
     /// Code dictionary
-    dict: Dict<DNode>,
+    trie: Trie<DNode>,
     /// Minimum code bits
     min_code_bits: u8,
     /// Current code bits
@@ -174,15 +174,15 @@ impl CNode {
     }
 }
 
-impl<N: Node> Dict<N> {
+impl<N: Node> Trie<N> {
     /// Create a new code dictionary
     fn new(min_code_bits: u8) -> Self {
-        let mut dict = Dict {
+        let mut trie = Trie {
             table: Vec::with_capacity(Bits::MAX.entries().into()),
             min_code_bits,
         };
-        dict.reset();
-        dict
+        trie.reset();
+        trie
     }
 
     /// Get the clear code
@@ -222,7 +222,7 @@ impl<N: Node> Dict<N> {
     }
 }
 
-impl Dict<CNode> {
+impl Trie<CNode> {
     /// Search and insert a node
     fn search_insert(&mut self, code: Option<Code>, byte: u8) -> Option<Code> {
         match code {
@@ -252,11 +252,11 @@ impl Dict<CNode> {
 impl Compressor {
     /// Create a new compressor
     pub fn new(min_code_bits: u8) -> Self {
-        let dict = Dict::<CNode>::new(min_code_bits);
+        let trie = Trie::<CNode>::new(min_code_bits);
         let code_bits = Bits::from(min_code_bits + 1);
         Compressor {
             min_code_bits,
-            dict,
+            trie,
             code_bits,
             code: 0,
             n_bits: 0,
@@ -276,20 +276,20 @@ impl Compressor {
 
     /// Compress a byte buffer
     pub fn compress(&mut self, bytes: &[u8], buffer: &mut Vec<u8>) {
-        self.pack(self.dict.clear_code(), buffer);
+        self.pack(self.trie.clear_code(), buffer);
         let mut code = None;
         for byte in bytes {
-            code = self.dict.search_insert(code, *byte).or_else(|| {
+            code = self.trie.search_insert(code, *byte).or_else(|| {
                 if let Some(code) = code {
                     self.pack(code, buffer);
                 }
                 Some(*byte as Code)
             });
-            let next_code = self.dict.next_code();
+            let next_code = self.trie.next_code();
             if next_code > self.code_bits.entries() {
                 if next_code > Bits::MAX.entries() {
-                    self.pack(self.dict.clear_code(), buffer);
-                    self.dict.reset();
+                    self.pack(self.trie.clear_code(), buffer);
+                    self.trie.reset();
                     self.code_bits = Bits::from(self.min_code_bits + 1);
                 } else {
                     self.code_bits += 1;
@@ -299,11 +299,11 @@ impl Compressor {
         if let Some(code) = code {
             self.pack(code, buffer);
         }
-        self.pack(self.dict.end_code(), buffer);
+        self.pack(self.trie.end_code(), buffer);
     }
 }
 
-impl Dict<DNode> {
+impl Trie<DNode> {
     /// Lookup a code value
     fn lookup(&self, code: Code) -> u8 {
         debug_assert!(code < self.next_code());
@@ -331,7 +331,7 @@ impl Decompressor {
     pub fn new(min_code_bits: u8) -> Self {
         Decompressor {
             min_code_bits,
-            dict: Dict::<DNode>::new(min_code_bits),
+            trie: Trie::<DNode>::new(min_code_bits),
             code_bits: Bits::from(min_code_bits + 1),
             last: None,
             code: 0,
@@ -397,11 +397,11 @@ impl Decompressor {
         code: Code,
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
-        if code == self.dict.clear_code() {
-            self.dict.reset();
+        if code == self.trie.clear_code() {
+            self.trie.reset();
             self.code_bits = Bits::from(self.min_code_bits + 1);
             self.last = None;
-        } else if code != self.dict.end_code() {
+        } else if code != self.trie.end_code() {
             let start = buffer.len();
             self.decompress_reversed(code, buffer)?;
             buffer[start..].reverse();
@@ -416,17 +416,17 @@ impl Decompressor {
         code: Code,
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
-        let next_code = self.dict.next_code();
+        let next_code = self.trie.next_code();
         match (self.last, code.cmp(&next_code)) {
             (_, Ordering::Greater) => return Err(Error::InvalidLzwData),
             (Some(last), Ordering::Less) => {
-                self.dict.decompress_reversed(code, buffer);
+                self.trie.decompress_reversed(code, buffer);
                 let byte = buffer.last().copied().unwrap();
-                self.dict.push_node(Some(last), byte);
+                self.trie.push_node(Some(last), byte);
             }
             (Some(last), Ordering::Equal) => {
-                self.dict.push_node(Some(last), self.dict.lookup(last));
-                self.dict.decompress_reversed(code, buffer);
+                self.trie.push_node(Some(last), self.trie.lookup(last));
+                self.trie.decompress_reversed(code, buffer);
             }
             (None, _) => buffer.push(code as u8),
         }
