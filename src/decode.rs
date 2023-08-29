@@ -280,7 +280,7 @@ impl<R: Read> Blocks<R> {
     fn check_block_end(&mut self, block: &mut Block) -> Result<()> {
         if let Block::ImageData(ref mut b) = block {
             match self.decompressor.take() {
-                Some(decompressor) => b.finish(decompressor, self.image_sz)?,
+                Some(_decompressor) => b.finish(self.image_sz)?,
                 _ => panic!("Invalid state in check_block_end!"),
             }
         }
@@ -336,14 +336,9 @@ impl ImageData {
     }
 
     /// Finish LZW decompression
-    fn finish(
-        &mut self,
-        mut decompressor: Decompressor,
-        image_sz: usize,
-    ) -> Result<()> {
-        decompressor.decompress_finish(self.data_mut())?;
-        if self.data_mut().len() > image_sz {
-            warn!("Extra image data: {:?}", &self.data_mut()[image_sz..]);
+    fn finish(&mut self, image_sz: usize) -> Result<()> {
+        if self.data().len() > image_sz {
+            warn!("Extra image data: {:?}", &self.data()[image_sz..]);
             self.data_mut().truncate(image_sz);
             self.data_mut().shrink_to_fit();
         }

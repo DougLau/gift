@@ -339,31 +339,26 @@ impl Decompressor {
         }
     }
 
-    /// Get the most recent code
-    fn code(&mut self) -> Option<Code> {
-        let b = u8::from(self.code_bits);
-        if self.n_bits >= b {
-            let code = (self.code & self.code_bits.mask()) as Code;
-            self.code >>= b;
-            self.n_bits -= b;
-            Some(code)
-        } else {
-            None
-        }
-    }
-
     /// Unpack one code from a buffer
     fn unpack(&mut self, buffer: &[u8]) -> (usize, Option<Code>) {
         let mut n_consumed = 0;
+        let code_bits = u8::from(self.code_bits);
         for byte in buffer {
-            if self.n_bits >= self.code_bits.into() {
+            if self.n_bits >= code_bits {
                 break;
             }
             self.code |= (*byte as u32) << self.n_bits;
             self.n_bits += 8;
             n_consumed += 1;
         }
-        (n_consumed, self.code())
+        if self.n_bits >= code_bits {
+            let code = (self.code & self.code_bits.mask()) as Code;
+            self.code >>= code_bits;
+            self.n_bits -= code_bits;
+            (n_consumed, Some(code))
+        } else {
+            (n_consumed, None)
+        }
     }
 
     /// Decompress a byte buffer
@@ -373,22 +368,14 @@ impl Decompressor {
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
         let mut bytes = bytes;
-        while !bytes.is_empty() {
+        loop {
             let (consumed, code) = self.unpack(bytes);
-            if let Some(code) = code {
-                self.decompress_code(code, buffer)?;
-            }
+            let Some(code) = code else {
+                return Ok(());
+            };
+            self.decompress_code(code, buffer)?;
             bytes = &bytes[consumed..];
         }
-        Ok(())
-    }
-
-    /// Finish Decompress
-    pub fn decompress_finish(&mut self, buffer: &mut Vec<u8>) -> Result<()> {
-        while let Some(code) = self.code() {
-            self.decompress_code(code, buffer)?;
-        }
-        Ok(())
     }
 
     /// Decompress one code
