@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+* Wrong LZW min code size encoding 256 color images
+
 ## [0.10.2]
 ### Added
 * `Step::transparent_color()`

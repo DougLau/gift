@@ -172,13 +172,13 @@ impl<R: Read> Blocks<R> {
     fn parse_image_data(&mut self) -> Result<Block> {
         let mut buf = vec![0; BlockCode::ImageData_.size()];
         self.fill_buffer(&mut buf)?;
-        let min_code_bits = buf[0];
-        if (2..=12).contains(&min_code_bits) {
-            self.decompressor = Some(Decompressor::new(min_code_bits));
-            Ok(ImageData::new(self.image_sz).into())
-        } else {
-            Err(Error::InvalidLzwCodeSize)
+        let mut min_code_bits = buf[0];
+        if !(2..=8).contains(&min_code_bits) {
+            warn!("Invalid LZW minimum code size: {min_code_bits}");
+            min_code_bits = 2.max(min_code_bits).min(8);
         }
+        self.decompressor = Some(Decompressor::new(min_code_bits));
+        Ok(ImageData::new(self.image_sz).into())
     }
 
     /// Parse a block

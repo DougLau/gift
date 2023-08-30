@@ -1,6 +1,6 @@
 // error.rs
 //
-// Copyright (c) 2019-2020  Douglas Lau
+// Copyright (c) 2019-2023  Douglas Lau
 //
 use std::fmt;
 use std::io;
@@ -26,8 +26,6 @@ pub enum Error {
     MalformedGraphicControlExtension,
     /// File ends with incomplete block.
     UnexpectedEndOfFile,
-    /// LZW code size must be between 2 and 12, inclusive.
-    InvalidLzwCodeSize,
     /// Compressed LZW data invalid or corrupt
     InvalidLzwData,
     /// Image larger than specified by

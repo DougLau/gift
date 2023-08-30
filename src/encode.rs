@@ -1,6 +1,6 @@
 // encode.rs
 //
-// Copyright (c) 2019-2022  Douglas Lau
+// Copyright (c) 2019-2023  Douglas Lau
 //
 //! GIF file encoding
 use crate::block::*;
@@ -210,9 +210,9 @@ impl ImageData {
     /// Format an image data block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
         let min_code_bits =
-            next_high_bit(self.data().iter().copied().max().unwrap_or(0)) + 1;
-        // minimum code bits must be between 2 and 12
-        let min_code_bits = 2.max(min_code_bits).min(12);
+            next_high_bit(self.data().iter().copied().max().unwrap_or(0));
+        // minimum code bits must be between 2 and 8
+        let min_code_bits = 2.max(min_code_bits).min(8);
         w.write_all(&[min_code_bits])?;
         let mut buffer = Vec::with_capacity(self.data().len());
         let mut compressor = Compressor::new(min_code_bits);
