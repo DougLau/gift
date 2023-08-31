@@ -60,14 +60,10 @@ struct CNode {
     data: u8,
 }
 
-/// Compressor code table
-#[derive(Debug)]
-struct CTable(Vec<CNode>);
-
 /// LZW Data Compressor
 pub struct Compressor {
     /// Code table
-    table: CTable,
+    table: Vec<CNode>,
     /// Minimum code bits
     min_code_bits: u8,
     /// Current code bits
@@ -87,15 +83,11 @@ struct DNode {
     data: u8,
 }
 
-/// Decompressor code table
-#[derive(Debug)]
-struct DTable(Vec<DNode>);
-
 /// LZW Data Decompressor
 #[derive(Debug)]
 pub struct Decompressor {
     /// Code table
-    table: DTable,
+    table: Vec<DNode>,
     /// Minimum code bits
     min_code_bits: u8,
     /// Current code bits
@@ -138,79 +130,21 @@ impl CNode {
     }
 }
 
-impl CTable {
-    /// Create a new code table
-    fn new(min_code_bits: u8) -> Self {
-        let clear_code = 1 << min_code_bits;
-        let mut table = CTable(Vec::with_capacity(Bits::MAX.entries().into()));
-        table.reset(clear_code);
-        table
-    }
-
-    /// Get the next available code
-    fn next_code(&self) -> Code {
-        self.0.len() as Code
-    }
-
-    /// Reset the table
-    fn reset(&mut self, clear_code: Code) {
-        self.0.clear();
-        for data in 0..clear_code {
-            self.push_node(None, data as u8);
-        }
-        self.push_node(None, 0); // clear code
-        self.push_node(None, 0); // end code
-    }
-
-    /// Push a node into the table
-    fn push_node(&mut self, next: Option<Code>, data: u8) {
-        self.0.push(CNode::new(next, data))
-    }
-
-    /// Get a mutable node
-    fn node_mut(&mut self, code: Code) -> &mut CNode {
-        &mut self.0[code as usize]
-    }
-
-    /// Insert a node
-    fn insert(&mut self, code: Code, data: u8) -> Option<Code> {
-        let next_code = self.next_code();
-        let mut node = self.node_mut(code);
-        let mut ordering = Ordering::Equal;
-        while let Some(code) = node.link(ordering) {
-            node = self.node_mut(code);
-            ordering = data.cmp(&node.data);
-            if ordering == Ordering::Equal {
-                return Some(code);
-            }
-        }
-        node.set_link(ordering, next_code);
-        self.push_node(None, data);
-        None
-    }
-
-    /// Search and insert a node
-    fn search_insert(&mut self, code: Option<Code>, data: u8) -> Option<Code> {
-        match code {
-            Some(code) => self.insert(code, data),
-            None => Some(data as Code),
-        }
-    }
-}
-
 impl Compressor {
     /// Create a new compressor
     pub fn new(min_code_bits: u8) -> Self {
-        let table = CTable::new(min_code_bits);
+        let table = Vec::with_capacity(Bits::MAX.entries().into());
         let initial_code_bits = min_code_bits + 1;
         let code_bits = Bits::from(initial_code_bits);
-        Compressor {
+        let mut com = Compressor {
             table,
             min_code_bits,
             code_bits,
             code: 0,
             n_bits: 0,
-        }
+        };
+        com.reset_table();
+        com
     }
 
     /// Get the clear code
@@ -221,6 +155,31 @@ impl Compressor {
     /// Get the end code
     fn end_code(&self) -> Code {
         self.clear_code() + 1
+    }
+
+    /// Get the next available code
+    fn next_code(&self) -> Code {
+        self.table.len() as Code
+    }
+
+    /// Reset the table
+    fn reset_table(&mut self) {
+        self.table.clear();
+        for data in 0..self.clear_code() {
+            self.push_node(None, data as u8);
+        }
+        self.push_node(None, 0); // clear code
+        self.push_node(None, 0); // end code
+    }
+
+    /// Push a node into the table
+    fn push_node(&mut self, next: Option<Code>, data: u8) {
+        self.table.push(CNode::new(next, data))
+    }
+
+    /// Get a mutable node
+    fn node_mut(&mut self, code: Code) -> &mut CNode {
+        &mut self.table[code as usize]
     }
 
     /// Pack a code into a buffer
@@ -239,19 +198,19 @@ impl Compressor {
         self.pack(self.clear_code(), buffer);
         let mut code = None;
         for data in bytes {
-            code = self.table.search_insert(code, *data).or_else(|| {
+            code = self.search_insert(code, *data).or_else(|| {
                 if let Some(code) = code {
                     self.pack(code, buffer);
                 }
                 Some(*data as Code)
             });
-            let next_code = self.table.next_code();
+            let next_code = self.next_code();
             if next_code > self.code_bits.entries() {
                 if next_code <= Bits::MAX.entries() {
                     self.code_bits += 1;
                 } else {
                     self.pack(self.clear_code(), buffer);
-                    self.table.reset(self.clear_code());
+                    self.reset_table();
                     let initial_code_bits = self.min_code_bits + 1;
                     self.code_bits = Bits::from(initial_code_bits);
                 }
@@ -262,71 +221,49 @@ impl Compressor {
         }
         self.pack(self.end_code(), buffer);
     }
-}
 
-impl DTable {
-    /// Create a new code table
-    fn new(min_code_bits: u8) -> Self {
-        let clear_code = 1 << min_code_bits;
-        let mut table = DTable(Vec::with_capacity(Bits::MAX.entries().into()));
-        table.reset(clear_code);
-        table
-    }
-
-    /// Reset the table
-    fn reset(&mut self, clear_code: Code) {
-        self.0.clear();
-        for data in 0..clear_code {
-            self.push_node(None, data as u8);
+    /// Search and insert a node
+    fn search_insert(&mut self, code: Option<Code>, data: u8) -> Option<Code> {
+        match code {
+            Some(code) => self.insert_node(code, data),
+            None => Some(data as Code),
         }
-        self.push_node(None, 0); // clear code
-        self.push_node(None, 0); // end code
     }
 
-    /// Get the next available code
-    fn next_code(&self) -> Code {
-        self.0.len() as Code
-    }
-
-    /// Push a node into the table
-    fn push_node(&mut self, parent: Option<Code>, data: u8) {
-        self.0.push(DNode { parent, data });
-    }
-
-    /// Lookup data value of a code
-    fn lookup(&self, code: Code) -> u8 {
-        let mut node = self.0[code as usize];
-        while let Some(code) = node.parent {
-            node = self.0[code as usize];
+    /// Insert a node
+    fn insert_node(&mut self, code: Code, data: u8) -> Option<Code> {
+        let next_code = self.next_code();
+        let mut node = self.node_mut(code);
+        let mut ordering = Ordering::Equal;
+        while let Some(code) = node.link(ordering) {
+            node = self.node_mut(code);
+            ordering = data.cmp(&node.data);
+            if ordering == Ordering::Equal {
+                return Some(code);
+            }
         }
-        node.data
-    }
-
-    /// Decompress a code into a buffer (reversed)
-    fn decompress_reversed(&self, code: Code, buffer: &mut Vec<u8>) {
-        let mut node = self.0[code as usize];
-        while let Some(code) = node.parent {
-            buffer.push(node.data);
-            node = self.0[code as usize];
-        }
-        buffer.push(node.data);
+        node.set_link(ordering, next_code);
+        self.push_node(None, data);
+        None
     }
 }
 
 impl Decompressor {
     /// Create a new decompressr
     pub fn new(min_code_bits: u8) -> Self {
-        let table = DTable::new(min_code_bits);
+        let table = Vec::with_capacity(Bits::MAX.entries().into());
         let initial_code_bits = min_code_bits + 1;
         let code_bits = Bits::from(initial_code_bits);
-        Decompressor {
+        let mut dec = Decompressor {
             table,
             min_code_bits,
             code_bits,
             last: None,
             code: 0,
             n_bits: 0,
-        }
+        };
+        dec.reset_table();
+        dec
     }
 
     /// Get the clear code
@@ -337,6 +274,35 @@ impl Decompressor {
     /// Get the end code
     fn end_code(&self) -> Code {
         self.clear_code() + 1
+    }
+
+    /// Get the next available code
+    fn next_code(&self) -> Code {
+        self.table.len() as Code
+    }
+
+    /// Reset the table
+    fn reset_table(&mut self) {
+        self.table.clear();
+        for data in 0..self.clear_code() {
+            self.push_node(None, data as u8);
+        }
+        self.push_node(None, 0); // clear code
+        self.push_node(None, 0); // end code
+    }
+
+    /// Push a node into the table
+    fn push_node(&mut self, parent: Option<Code>, data: u8) {
+        self.table.push(DNode { parent, data });
+    }
+
+    /// Lookup data value of a code
+    fn lookup(&self, code: Code) -> u8 {
+        let mut node = self.table[code as usize];
+        while let Some(code) = node.parent {
+            node = self.table[code as usize];
+        }
+        node.data
     }
 
     /// Unpack one code from a buffer
@@ -382,7 +348,7 @@ impl Decompressor {
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
         if code == self.clear_code() {
-            self.table.reset(self.clear_code());
+            self.reset_table();
             let initial_code_bits = self.min_code_bits + 1;
             self.code_bits = Bits::from(initial_code_bits);
             self.last = None;
@@ -401,17 +367,17 @@ impl Decompressor {
         code: Code,
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
-        let next_code = self.table.next_code();
+        let next_code = self.next_code();
         match (self.last, code.cmp(&next_code)) {
             (_, Ordering::Greater) => return Err(Error::InvalidLzwData),
             (Some(last), Ordering::Less) => {
-                self.table.decompress_reversed(code, buffer);
+                self.decompress_buffer(code, buffer);
                 let data = buffer.last().copied().unwrap();
-                self.table.push_node(Some(last), data);
+                self.push_node(Some(last), data);
             }
             (Some(last), Ordering::Equal) => {
-                self.table.push_node(Some(last), self.table.lookup(last));
-                self.table.decompress_reversed(code, buffer);
+                self.push_node(Some(last), self.lookup(last));
+                self.decompress_buffer(code, buffer);
             }
             (None, _) => buffer.push(code as u8),
         }
@@ -419,5 +385,15 @@ impl Decompressor {
             self.code_bits += 1;
         }
         Ok(())
+    }
+
+    /// Decompress a code into a buffer (reversed)
+    fn decompress_buffer(&self, code: Code, buffer: &mut Vec<u8>) {
+        let mut node = self.table[code as usize];
+        while let Some(code) = node.parent {
+            buffer.push(node.data);
+            node = self.table[code as usize];
+        }
+        buffer.push(node.data);
     }
 }
