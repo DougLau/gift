@@ -175,19 +175,16 @@ impl CNode {
 }
 
 impl<N: Node> Trie<N> {
-    /// Create a new code dictionary
+    /// Create a new code table
     fn new(min_code_bits: u8) -> Self {
         let clear_code = 1 << min_code_bits;
-        let mut table = Vec::with_capacity(Bits::MAX.entries().into());
-        for byte in 0..clear_code {
-            table.push(N::new(None, byte as u8));
-        }
-        table.push(N::new(None, 0)); // clear code
-        table.push(N::new(None, 0)); // end code
-        Trie {
+        let table = Vec::with_capacity(Bits::MAX.entries().into());
+        let mut trie = Trie {
             table,
             clear_code,
-        }
+        };
+        trie.reset();
+        trie
     }
 
     /// Get the clear code
@@ -205,10 +202,14 @@ impl<N: Node> Trie<N> {
         self.table.len() as Code
     }
 
-    /// Reset the dictionary
+    /// Reset the table
     fn reset(&mut self) {
-        let len = usize::from(self.end_code()) + 1;
-        self.table.truncate(len);
+        self.table.clear();
+        for byte in 0..self.clear_code() {
+            self.push_node(None, byte as u8);
+        }
+        self.push_node(None, 0); // clear code
+        self.push_node(None, 0); // end code
     }
 
     /// Push a node into the dictionary

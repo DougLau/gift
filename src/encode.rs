@@ -209,8 +209,9 @@ impl LocalColorTable {
 impl ImageData {
     /// Format an image data block
     fn format<W: Write>(&self, w: &mut W) -> io::Result<()> {
+        // number of entries needed is max value plus one
         let min_code_bits =
-            next_high_bit(self.data().iter().copied().max().unwrap_or(0));
+            next_high_bit(self.data().iter().copied().max().unwrap_or(0) + 1);
         // minimum code bits must be between 2 and 8
         let min_code_bits = 2.max(min_code_bits).min(8);
         w.write_all(&[min_code_bits])?;
