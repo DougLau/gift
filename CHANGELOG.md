@@ -1,7 +1,9 @@
 ## [Unreleased]
 
+## [0.10.3]
 ### Fixed
 * Wrong LZW min code size encoding 256 color images
+* Fixed updating graphic control extension
 
 ## [0.10.2]
 ### Added
