@@ -92,8 +92,8 @@ pub struct Decompressor {
     min_code_bits: u8,
     /// Current code bits
     code_bits: Bits,
-    /// Last code
-    last: Option<Code>,
+    /// Prefix code
+    prefix: Option<Code>,
     /// Current code
     code: u32,
     /// Number of bits in current code
@@ -258,7 +258,7 @@ impl Decompressor {
             table,
             min_code_bits,
             code_bits,
-            last: None,
+            prefix: None,
             code: 0,
             n_bits: 0,
         };
@@ -351,35 +351,39 @@ impl Decompressor {
             self.reset_table();
             let initial_code_bits = self.min_code_bits + 1;
             self.code_bits = Bits::from(initial_code_bits);
-            self.last = None;
-        } else if code != self.end_code() {
-            let start = buffer.len();
-            self.decompress_reversed(code, buffer)?;
-            buffer[start..].reverse();
-            self.last = Some(code);
+            self.prefix = None;
+        } else if code == self.end_code() {
+            // FIXME: end decompress loop here
+            self.prefix = None;
+        } else {
+            self.decompress_data(code, buffer)?;
+            self.prefix = Some(code);
         }
         Ok(())
     }
 
-    /// Decompress one code (reversed)
-    fn decompress_reversed(
+    /// Decompress data for one code
+    fn decompress_data(
         &mut self,
         code: Code,
         buffer: &mut Vec<u8>,
     ) -> Result<()> {
         let next_code = self.next_code();
-        match (self.last, code.cmp(&next_code)) {
-            (_, Ordering::Greater) => return Err(Error::InvalidLzwData),
-            (Some(last), Ordering::Less) => {
+        if code > next_code {
+            return Err(Error::InvalidLzwData);
+        }
+        match self.prefix {
+            Some(prefix) => {
+                // Is code already in table?
+                let data = if code < next_code {
+                    self.lookup(code)
+                } else {
+                    self.lookup(prefix)
+                };
+                self.push_node(Some(prefix), data);
                 self.decompress_buffer(code, buffer);
-                let data = buffer.last().copied().unwrap();
-                self.push_node(Some(last), data);
             }
-            (Some(last), Ordering::Equal) => {
-                self.push_node(Some(last), self.lookup(last));
-                self.decompress_buffer(code, buffer);
-            }
-            (None, _) => buffer.push(code as u8),
+            None => buffer.push(code as u8),
         }
         if next_code + 1 == self.code_bits.entries() {
             self.code_bits += 1;
@@ -387,13 +391,18 @@ impl Decompressor {
         Ok(())
     }
 
-    /// Decompress a code into a buffer (reversed)
+    /// Decompress a code into a buffer
+    ///
+    /// Starts from the final code data and works backward to the start, then
+    /// finally reverses the fully decompressed code.
     fn decompress_buffer(&self, code: Code, buffer: &mut Vec<u8>) {
+        let start = buffer.len();
         let mut node = self.table[code as usize];
-        while let Some(code) = node.parent {
-            buffer.push(node.data);
-            node = self.table[code as usize];
-        }
         buffer.push(node.data);
+        while let Some(code) = node.parent {
+            node = self.table[code as usize];
+            buffer.push(node.data);
+        }
+        buffer[start..].reverse();
     }
 }
