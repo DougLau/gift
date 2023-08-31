@@ -198,12 +198,14 @@ impl Compressor {
         self.pack(self.clear_code(), buffer);
         let mut code = None;
         for data in bytes {
-            code = self.search_insert(code, *data).or_else(|| {
-                if let Some(code) = code {
-                    self.pack(code, buffer);
-                }
-                Some(*data as Code)
-            });
+            let prefix = self.search_insert(code, *data);
+            if prefix.is_some() {
+                code = prefix;
+                continue;
+            }
+            if let Some(code) = code {
+                self.pack(code, buffer);
+            }
             let next_code = self.next_code();
             if next_code > self.code_bits.entries() {
                 if next_code <= Bits::MAX.entries() {
@@ -215,6 +217,7 @@ impl Compressor {
                     self.code_bits = Bits::from(initial_code_bits);
                 }
             }
+            code = Some(*data as Code);
         }
         if let Some(code) = code {
             self.pack(code, buffer);
