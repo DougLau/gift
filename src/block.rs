@@ -550,7 +550,7 @@ impl GraphicControl {
     /// Set the frame disposal method
     pub fn set_disposal_method(&mut self, disposal_method: DisposalMethod) {
         let d: u8 = disposal_method.into();
-        self.flags = (self.flags | !Self::DISPOSAL_METHOD) | (d << 2);
+        self.flags = (self.flags & !Self::DISPOSAL_METHOD) | (d << 2);
     }
 
     /// Get the user input flag
@@ -561,7 +561,7 @@ impl GraphicControl {
     /// Set the user input flag
     pub fn set_user_input(&mut self, user_input: bool) {
         let u = (user_input as u8) << 1;
-        self.flags = (self.flags | !Self::USER_INPUT) | u;
+        self.flags = (self.flags & !Self::USER_INPUT) | u;
     }
 
     /// Get the frame delay time (centiseconds)
@@ -1263,6 +1263,26 @@ mod test {
         assert_eq!(t.len_bits(), 7);
         let t = ColorTableConfig::default();
         assert_eq!(t.len_bits(), 0);
+    }
+
+    #[test]
+    fn graphic_control() {
+        let mut g = GraphicControl::default();
+        assert_eq!(g.disposal_method(), DisposalMethod::NoAction);
+        assert_eq!(g.transparent_color(), None);
+        assert_eq!(g.user_input(), false);
+        g.set_disposal_method(DisposalMethod::Keep);
+        assert_eq!(g.disposal_method(), DisposalMethod::Keep);
+        assert_eq!(g.transparent_color(), None);
+        assert_eq!(g.user_input(), false);
+        g.set_transparent_color(Some(0));
+        assert_eq!(g.disposal_method(), DisposalMethod::Keep);
+        assert_eq!(g.transparent_color(), Some(0));
+        assert_eq!(g.user_input(), false);
+        g.set_user_input(true);
+        assert_eq!(g.disposal_method(), DisposalMethod::Keep);
+        assert_eq!(g.transparent_color(), Some(0));
+        assert_eq!(g.user_input(), true);
     }
 
     #[test]

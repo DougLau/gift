@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.10.5]
+### Fixed
+* Bit flag twiddling for graphic control ext flags
+
 ## [0.10.4]
 ### Changed
 * Default disposal method NoAction instead of Keep
