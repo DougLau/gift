@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.10.4]
+### Changed
+* Default disposal method NoAction instead of Keep
+
 ## [0.10.3]
 ### Fixed
 * Wrong LZW min code size encoding 256 color images
