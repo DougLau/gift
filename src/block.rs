@@ -126,9 +126,9 @@ impl ColorTableConfig {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum DisposalMethod {
     /// No disposal specified
+    #[default]
     NoAction,
     /// Do not dispose of frame
-    #[default]
     Keep,
     /// Restore to background color
     Background,
