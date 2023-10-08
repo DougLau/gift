@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.10.6]
+### Fixed
+* Bit flags w/ set_transparent_color(None) (graphic control ext)
+
 ## [0.10.5]
 ### Fixed
 * Bit flag twiddling for graphic control ext flags
