@@ -602,7 +602,7 @@ impl GraphicControl {
                 self.transparent_color_idx = t;
             }
             None => {
-                self.flags |= !Self::TRANSPARENT_COLOR;
+                self.flags &= !Self::TRANSPARENT_COLOR;
                 self.transparent_color_idx = 0;
             }
         }
@@ -1279,9 +1279,13 @@ mod test {
         assert_eq!(g.disposal_method(), DisposalMethod::Keep);
         assert_eq!(g.transparent_color(), Some(0));
         assert_eq!(g.user_input(), false);
+        g.set_transparent_color(None);
+        assert_eq!(g.disposal_method(), DisposalMethod::Keep);
+        assert_eq!(g.transparent_color(), None);
+        assert_eq!(g.user_input(), false);
         g.set_user_input(true);
         assert_eq!(g.disposal_method(), DisposalMethod::Keep);
-        assert_eq!(g.transparent_color(), Some(0));
+        assert_eq!(g.transparent_color(), None);
         assert_eq!(g.user_input(), true);
     }
 
