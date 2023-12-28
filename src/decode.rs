@@ -768,7 +768,7 @@ impl Iterator for StepsLooping {
                 Ordering::Equal => self.loop_count = None,
                 _ => (),
             }
-            if let Some(step) = self.steps.get(0) {
+            if let Some(step) = self.steps.first() {
                 self.step_n = 1;
                 Some(Ok(step.clone()))
             } else {
