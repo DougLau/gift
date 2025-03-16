@@ -43,13 +43,3 @@ fn encode<W: Write>(mut w: W) -> Result<(), Box<dyn Error>> {
 ```
 
 NOTE: building a palette from 24- or 32-bit rasters is not yet implemented.
-
-## Utility
-
-The library comes with a `gift` command-line utility, which can show the blocks
-within GIF files.
-```
-cargo install gift --features=cmd
-```
-
-NOTE: This utility is a work-in-progress, and some features are not implemented.

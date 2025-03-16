@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+* Updated to Rust 2024 edition
+
 ## [0.10.6]
 ### Fixed
 * Bit flags w/ set_transparent_color(None) (graphic control ext)
