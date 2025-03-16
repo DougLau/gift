@@ -1,11 +1,15 @@
 [workspace]
-members = ["gift", "gift-bin", "gift-fuzz"]
+members = ["gift", "gift-bin"]
 resolver = "2"
 
 [workspace.package]
-version = "0.10.6"
+version = "0.11.0"
 edition = "2024"
 
 [workspace.dependencies]
+gift = "0.11.0"
 log = "0.4"
 pix = "0.14"
+
+[patch.crates-io]
+gift = { path = "gift" }

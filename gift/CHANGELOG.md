@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+## [0.11.0]
 ### Changed
 * Updated to Rust 2024 edition
 
