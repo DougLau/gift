@@ -1,38 +1,11 @@
-[package]
-name = "gift"
+[workspace]
+members = ["gift", "gift-bin", "gift-fuzz"]
+resolver = "2"
+
+[workspace.package]
 version = "0.10.6"
-description = "A library for reading and writing GIF images"
-license = "MIT OR Apache-2.0"
-documentation = "https://docs.rs/gift"
-repository = "https://github.com/DougLau/gift"
-readme = "README.md"
-keywords = ["gif", "image"]
-categories = ["multimedia", "encoding"]
 edition = "2021"
 
-[dependencies]
+[workspace.dependencies]
 log = "0.4"
-pix = "0.13"
-
-# NOTE: for cmd only -- library has no optional features
-clap = { version = "2.33", optional = true }
-env_logger = { version = "0.9", optional = true }
-termcolor = { version = "1", optional = true }
-
-[dev-dependencies]
-criterion = "0.3"
-
-[features]
-cmd = ["clap", "env_logger", "termcolor"]
-
-[[bin]]
-name = "gift"
-required-features = ["cmd"]
-
-[[bench]]
-name = "decode"
-harness = false
-
-[[bench]]
-name = "encode"
-harness = false
+pix = "0.14"

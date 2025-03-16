@@ -1,0 +1,21 @@
+[package]
+name = "gift-bin"
+description = "Command-line utility for GIF images"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/gift-bin"
+repository = "https://github.com/DougLau/gift/gift-bin"
+readme = "README.md"
+keywords = ["gif", "image"]
+categories = ["multimedia", "encoding"]
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = "2.33"
+env_logger = "0.9"
+gift = "0.10.6"
+termcolor = "1"
+
+[[bin]]
+name = "gift"
+path = "src/main.rs"

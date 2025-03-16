@@ -11,7 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.3"
 
 [dependencies.gift]
-path = ".."
+path = "../gift"
 
 [[bin]]
 name = "decode"

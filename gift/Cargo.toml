@@ -1,0 +1,26 @@
+[package]
+name = "gift"
+description = "A library for reading and writing GIF images"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/gift"
+repository = "https://github.com/DougLau/gift"
+readme = "README.md"
+keywords = ["gif", "image"]
+categories = ["multimedia", "encoding"]
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+log = { workspace = true }
+pix = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "decode"
+harness = false
+
+[[bench]]
+name = "encode"
+harness = false
