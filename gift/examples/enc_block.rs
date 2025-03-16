@@ -1,5 +1,5 @@
 // Block encoding example
-use gift::{block::*, Encoder};
+use gift::{Encoder, block::*};
 use std::error::Error;
 use std::fs::File;
 use std::io::BufWriter;

@@ -1,12 +1,12 @@
 // main.rs      gift command
 //
-// Copyright (c) 2019-2020  Douglas Lau
+// Copyright (c) 2019-2025  Douglas Lau
 //
 #![forbid(unsafe_code)]
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use gift::block::{DisposalMethod, Frame};
 use gift::Decoder;
+use gift::block::{DisposalMethod, Frame};
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs::File;

@@ -1,13 +1,13 @@
 // encode.rs
 //
-// Copyright (c) 2019-2023  Douglas Lau
+// Copyright (c) 2019-2025  Douglas Lau
 //
 //! GIF file encoding
 use crate::block::*;
 use crate::lzw::Compressor;
 use crate::private::StepRaster;
 use crate::{Error, Result, Step};
-use pix::{gray::Gray8, rgb::Rgb, Palette, Raster};
+use pix::{Palette, Raster, gray::Gray8, rgb::Rgb};
 use std::convert::TryInto;
 use std::io::{self, Write};
 
@@ -459,7 +459,7 @@ fn make_color_table(palette: &Palette) -> (ColorTableConfig, Vec<u8>) {
 mod test {
     use super::*;
     use crate::Encoder;
-    use pix::{gray::Gray8, rgb::SRgb8, Palette, Raster};
+    use pix::{Palette, Raster, gray::Gray8, rgb::SRgb8};
 
     #[test]
     fn high_bits() {

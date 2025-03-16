@@ -1,13 +1,13 @@
 // decode.rs
 //
-// Copyright (c) 2019-2023  Douglas Lau
+// Copyright (c) 2019-2025  Douglas Lau
 //
 //! GIF file decoding
 use crate::block::*;
 use crate::error::{Error, Result};
 use crate::lzw::Decompressor;
 use crate::private::Step;
-use pix::{rgb::SRgba8, Raster, Region};
+use pix::{Raster, Region, rgb::SRgba8};
 use std::cmp::Ordering;
 use std::io::{ErrorKind, Read};
 
@@ -278,7 +278,7 @@ impl<R: Read> Blocks<R> {
 
     /// Check end of block (after sub-blocks)
     fn check_block_end(&mut self, block: &mut Block) -> Result<()> {
-        if let Block::ImageData(ref mut b) = block {
+        if let Block::ImageData(b) = block {
             match self.decompressor.take() {
                 Some(_decompressor) => b.finish(self.image_sz)?,
                 _ => panic!("Invalid state in check_block_end!"),
@@ -328,7 +328,7 @@ impl ImageData {
         bytes: &[u8],
         decompressor: &mut Option<Decompressor>,
     ) -> Result<()> {
-        if let Some(ref mut dec) = decompressor {
+        if let Some(dec) = decompressor {
             dec.decompress(bytes, self.data_mut())?;
             return Ok(());
         }
@@ -496,29 +496,28 @@ impl<R: Read> Frames<R> {
     fn handle_block(&mut self, block: Block) -> Result<Option<Frame>> {
         match block {
             Block::Header(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
+                if let Some(f) = &mut self.preamble {
                     f.header = b;
                 }
             }
             Block::LogicalScreenDesc(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
+                if let Some(f) = &mut self.preamble {
                     f.logical_screen_desc = b;
                 }
             }
             Block::GlobalColorTable(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
+                if let Some(f) = &mut self.preamble {
                     f.global_color_table = Some(b);
                 }
             }
             Block::Application(b) => {
-                if let (Some(ref mut f), Some(_)) =
-                    (&mut self.preamble, b.loop_count())
+                if let (Some(f), Some(_)) = (&mut self.preamble, b.loop_count())
                 {
                     f.loop_count_ext = Some(b);
                 }
             }
             Block::Comment(b) => {
-                if let Some(ref mut f) = &mut self.preamble {
+                if let Some(f) = &mut self.preamble {
                     f.comments.push(b);
                 }
             }
@@ -656,16 +655,19 @@ impl<R: Read> StepsOnce<R> {
 
     /// Make the initial raster
     fn make_raster(&mut self) -> Result<()> {
-        if let Some(mut p) = self.frames.preamble()? {
-            self.global_color_table = p.global_color_table.take();
-            self.loop_count_ext = p.loop_count_ext.take();
-            let w = p.screen_width().into();
-            let h = p.screen_height().into();
-            self.raster = Some(Raster::with_clear(w, h));
-            Ok(())
-        } else {
-            warn!("Preamble not found!");
-            Ok(())
+        match self.frames.preamble()? {
+            Some(mut p) => {
+                self.global_color_table = p.global_color_table.take();
+                self.loop_count_ext = p.loop_count_ext.take();
+                let w = p.screen_width().into();
+                let h = p.screen_height().into();
+                self.raster = Some(Raster::with_clear(w, h));
+                Ok(())
+            }
+            _ => {
+                warn!("Preamble not found!");
+                Ok(())
+            }
         }
     }
 

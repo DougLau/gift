@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use gift::{block::Block, Decoder, Encoder};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use gift::{Decoder, Encoder, block::Block};
 use std::io::Cursor;
 
 const LOGO: &[u8] = include_bytes!("../res/gift_logo.gif") as &[u8];

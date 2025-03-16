@@ -1,13 +1,14 @@
 // private.rs
 //
-// Copyright (c) 2019-2023  Douglas Lau
+// Copyright (c) 2019-2025  Douglas Lau
 //
 //! Private module for top-level items
 use crate::{
+    Result,
     block::{DisposalMethod, GraphicControl},
-    decode, encode, Result,
+    decode, encode,
 };
-use pix::{gray::Gray8, rgb::SRgba8, Palette, Raster};
+use pix::{Palette, Raster, gray::Gray8, rgb::SRgba8};
 use std::io::{Read, Write};
 
 /// Raster for an animation step.
@@ -148,7 +149,7 @@ impl Step {
     /// Get the raster
     pub fn raster(&self) -> &Raster<SRgba8> {
         match &self.raster {
-            StepRaster::TrueColor(ref r) => r,
+            StepRaster::TrueColor(r) => r,
             StepRaster::Indexed(_, _) => todo!("convert to true color"),
         }
     }

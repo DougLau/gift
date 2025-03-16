@@ -1,6 +1,6 @@
 // block.rs
 //
-// Copyright (c) 2019-2023  Douglas Lau
+// Copyright (c) 2019-2025  Douglas Lau
 //
 //! A GIF file consists of a sequence of [Block](enum.Block.html)s in a
 //! specific order.
@@ -19,7 +19,7 @@
 //!   - [ImageData](struct.ImageData.html)
 //! * [Trailer](struct.Trailer.html)
 //!
-use pix::{gray::Gray8, Raster, Region};
+use pix::{Raster, Region, gray::Gray8};
 
 /// Number of channels in color tables (red, green and blue)
 const CHANNELS: usize = 3;

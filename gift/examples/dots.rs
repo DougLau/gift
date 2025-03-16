@@ -1,9 +1,9 @@
 // dots.rs
 use gift::{Encoder, Step};
 use pix::{
+    Palette, Raster,
     gray::{Gray, Gray8},
     rgb::{Rgb, SRgb8},
-    Palette, Raster,
 };
 use std::error::Error;
 use std::fs::File;
