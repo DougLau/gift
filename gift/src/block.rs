@@ -687,7 +687,7 @@ impl Application {
                      d[1].len() == 3 &&         // app data sub-block length
                      d[1][0] == 1; // sub-block ID
         if exists {
-            Some(u16::from(d[1][1]) << 8 | u16::from(d[1][2]))
+            Some((u16::from(d[1][1]) << 8) | u16::from(d[1][2]))
         } else {
             None
         }

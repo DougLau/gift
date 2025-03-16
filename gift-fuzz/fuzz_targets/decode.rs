@@ -2,8 +2,8 @@
 
 #![no_main]
 
-use std::io::Cursor;
 use libfuzzer_sys::fuzz_target;
+use std::io::Cursor;
 
 use gift::Decoder;
 

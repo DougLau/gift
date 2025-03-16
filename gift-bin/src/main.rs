@@ -14,7 +14,7 @@ use std::io::{BufReader, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// Crate version
-const VERSION: &'static str = std::env!("CARGO_PKG_VERSION");
+const VERSION: &str = std::env!("CARGO_PKG_VERSION");
 
 /// Main entry point
 fn main() -> Result<(), Box<dyn Error>> {
@@ -94,7 +94,7 @@ fn show_file(
     bold.set_fg(Some(Color::White))
         .set_intense(true)
         .set_bold(true);
-    let f = BufReader::new(File::open(&path)?);
+    let f = BufReader::new(File::open(path)?);
     let mut frame_dec = Decoder::new(f).into_frames();
     let preamble = if let Some(p) = frame_dec.preamble()? {
         p
@@ -117,7 +117,7 @@ fn show_file(
         for c in cmt.comments() {
             for l in String::from_utf8_lossy(c).split("\n") {
                 let l = l.trim();
-                if l.len() > 0 {
+                if !l.is_empty() {
                     comments.push(l.to_string());
                 }
             }
@@ -137,7 +137,7 @@ fn show_file(
             }
         }
     }
-    if comments.len() > 0 {
+    if !comments.is_empty() {
         out.set_color(&cyan)?;
         for c in comments {
             writeln!(out, "  # {}", c)?;
@@ -168,6 +168,7 @@ fn show_file(
 }
 
 /// Show one frame of a GIF file
+#[allow(clippy::too_many_arguments)]
 fn show_frame(
     frame: &Frame,
     out: &mut StandardStream,

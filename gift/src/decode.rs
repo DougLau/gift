@@ -140,8 +140,8 @@ impl<R: Read> Blocks<R> {
     fn parse_logical_screen_desc(&mut self) -> Result<Block> {
         let mut buf = vec![0; BlockCode::LogicalScreenDesc_.size()];
         self.fill_buffer(&mut buf)?;
-        let width = u16::from(buf[1]) << 8 | u16::from(buf[0]);
-        let height = u16::from(buf[3]) << 8 | u16::from(buf[2]);
+        let width = (u16::from(buf[1]) << 8) | u16::from(buf[0]);
+        let height = (u16::from(buf[3]) << 8) | u16::from(buf[2]);
         let flags = buf[4];
         let bg_color = buf[5];
         let aspect = buf[6];
@@ -213,10 +213,10 @@ impl<R: Read> Blocks<R> {
     fn parse_image_desc(&mut self) -> Result<Block> {
         let mut buf = vec![0; BlockCode::ImageDesc_.size() - 1];
         self.fill_buffer(&mut buf)?;
-        let left = u16::from(buf[1]) << 8 | u16::from(buf[0]);
-        let top = u16::from(buf[3]) << 8 | u16::from(buf[2]);
-        let width = u16::from(buf[5]) << 8 | u16::from(buf[4]);
-        let height = u16::from(buf[7]) << 8 | u16::from(buf[6]);
+        let left = (u16::from(buf[1]) << 8) | u16::from(buf[0]);
+        let top = (u16::from(buf[3]) << 8) | u16::from(buf[2]);
+        let width = (u16::from(buf[5]) << 8) | u16::from(buf[4]);
+        let height = (u16::from(buf[7]) << 8) | u16::from(buf[6]);
         let flags = buf[8];
         let b = ImageDesc::default()
             .with_left(left)
@@ -362,7 +362,7 @@ impl GraphicControl {
     fn parse_sub_block(&mut self, bytes: &[u8]) -> Result<()> {
         if bytes.len() == 4 {
             self.set_flags(bytes[0]);
-            let delay = u16::from(bytes[2]) << 8 | u16::from(bytes[1]);
+            let delay = (u16::from(bytes[2]) << 8) | u16::from(bytes[1]);
             self.set_delay_time_cs(delay);
             self.set_transparent_color_idx(bytes[3]);
             Ok(())
