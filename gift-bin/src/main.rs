@@ -1,6 +1,6 @@
 // main.rs      gift command
 //
-// Copyright (c) 2019-2025  Douglas Lau
+// Copyright (c) 2019-2026  Douglas Lau
 //
 #![forbid(unsafe_code)]
 
@@ -127,14 +127,14 @@ fn show_file(
     writeln!(out, "{:?}", path)?;
     out.set_color(&bold)?;
     write!(out, "GIF{}, frames: {}", gif, frames.len())?;
-    if let Some(ap) = preamble.loop_count_ext {
-        if let Some(c) = ap.loop_count() {
-            write!(out, ", repeat: ")?;
-            if c == 0 {
-                write!(out, "∞")?;
-            } else {
-                write!(out, "{}", c)?;
-            }
+    if let Some(ap) = preamble.loop_count_ext
+        && let Some(c) = ap.loop_count()
+    {
+        write!(out, ", repeat: ")?;
+        if c == 0 {
+            write!(out, "∞")?;
+        } else {
+            write!(out, "{}", c)?;
         }
     }
     if !comments.is_empty() {

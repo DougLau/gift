@@ -1,6 +1,6 @@
 // decode.rs
 //
-// Copyright (c) 2019-2025  Douglas Lau
+// Copyright (c) 2019-2026  Douglas Lau
 //
 //! GIF file decoding
 use crate::block::*;
@@ -225,10 +225,10 @@ impl<R: Read> Blocks<R> {
             .with_height(height)
             .with_flags(flags);
         self.image_sz = b.image_sz();
-        if let Some(sz) = self.max_image_sz {
-            if self.image_sz > sz {
-                return Err(Error::TooLargeImage);
-            }
+        if let Some(sz) = self.max_image_sz
+            && self.image_sz > sz
+        {
+            return Err(Error::TooLargeImage);
         }
         Ok(b.into())
     }
@@ -630,10 +630,10 @@ impl<R: Read> Iterator for StepsOnce<R> {
     type Item = Result<Step>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.raster.is_none() {
-            if let Err(e) = self.make_raster() {
-                return Some(Err(e));
-            }
+        if self.raster.is_none()
+            && let Err(e) = self.make_raster()
+        {
+            return Some(Err(e));
         }
         match self.raster {
             Some(_) => self.next_step(),
