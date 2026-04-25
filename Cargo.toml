@@ -9,7 +9,7 @@ edition = "2024"
 [workspace.dependencies]
 gift = "0.11.0"
 log = "0.4"
-pix = "0.14"
+pix = "0.15"
 
 [patch.crates-io]
 gift = { path = "gift" }
