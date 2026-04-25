@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.12.0]
+### Changed
+* Updated pix to 0.15
+
 ## [0.11.0]
 ### Changed
 * Updated to Rust 2024 edition
