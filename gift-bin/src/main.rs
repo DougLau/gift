@@ -4,84 +4,47 @@
 //
 #![forbid(unsafe_code)]
 
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use anyhow::Result;
+use argh::FromArgs;
 use gift::Decoder;
 use gift::block::{DisposalMethod, Frame};
-use std::error::Error;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufReader, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-/// Crate version
-const VERSION: &str = std::env!("CARGO_PKG_VERSION");
+/// Command-line arguments
+#[derive(FromArgs, Debug, PartialEq)]
+struct Args {
+    #[argh(positional, greedy)]
+    files: Vec<OsString>,
+}
 
 /// Main entry point
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     env_logger::builder().format_timestamp(None).init();
     let mut out = StandardStream::stdout(ColorChoice::Always);
-    match create_app().get_matches().subcommand() {
-        ("show", Some(matches)) => show(&mut out, matches)?,
-        ("unwrap", Some(_matches)) => todo!(),
-        ("wrap", Some(_matches)) => todo!(),
-        ("peek", Some(_matches)) => todo!(),
-        _ => panic!(),
-    }
+    let args: Args = argh::from_env();
+    args.run(&mut out)?;
     out.reset()?;
     Ok(())
 }
 
-/// Create clap App
-fn create_app() -> App<'static, 'static> {
-    App::new("gift")
-        .version(VERSION)
-        .setting(AppSettings::GlobalVersion)
-        .about("GIF file utility")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .subcommand(
-            SubCommand::with_name("show")
-                .about("Show GIF block table")
-                .arg(
-                    Arg::with_name("files")
-                        .required(true)
-                        .min_values(1)
-                        .help("input file(s)"),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("unwrap")
-                .about("Unwrap frames from a GIF")
-                .arg(Arg::with_name("file").required(true).help("input file")),
-        )
-        .subcommand(
-            SubCommand::with_name("wrap")
-                .about("Wrap frames into a GIF")
-                .arg(Arg::with_name("file").required(true).help("input file")),
-        )
-        .subcommand(
-            SubCommand::with_name("peek")
-                .about("Peek into a GIF")
-                .arg(Arg::with_name("file").required(true).help("input file")),
-        )
-}
-
-/// Handle show subcommand
-fn show(
-    out: &mut StandardStream,
-    matches: &ArgMatches,
-) -> Result<(), Box<dyn Error>> {
-    let values = matches.values_of_os("files").unwrap();
-    for path in values {
-        show_file(out, path)?;
+impl Args {
+    fn run(self, out: &mut StandardStream) -> Result<()> {
+        //let values = matches.values_of_os("files").unwrap();
+        for path in self.files {
+            show_file(out, &path)?;
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 /// Show one GIF file
 fn show_file(
     out: &mut StandardStream,
     path: &OsStr,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut magenta = ColorSpec::new();
     magenta.set_fg(Some(Color::Magenta));
     let mut red = ColorSpec::new();
@@ -178,7 +141,7 @@ fn show_frame(
     number: usize,
     frame_digits: usize,
     size_digits: usize,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut dflt = ColorSpec::new();
     dflt.set_fg(Some(Color::White));
     let mut bold = ColorSpec::new();
