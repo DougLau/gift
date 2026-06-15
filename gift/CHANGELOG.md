@@ -1,4 +1,6 @@
 ## [Unreleased]
+
+## [0.13.0]
 ### Changed
 * Updated pix to 1.0
 
