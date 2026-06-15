@@ -41,10 +41,7 @@ impl Args {
 }
 
 /// Show one GIF file
-fn show_file(
-    out: &mut StandardStream,
-    path: &OsStr,
-) -> Result<()> {
+fn show_file(out: &mut StandardStream, path: &OsStr) -> Result<()> {
     let mut magenta = ColorSpec::new();
     magenta.set_fg(Some(Color::Magenta));
     let mut red = ColorSpec::new();
